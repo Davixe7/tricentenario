@@ -7,8 +7,11 @@ class User {
     }
 
     public function findByUsername($username) {
-        $stmt = $this->db->prepare("SELECT * FROM users WHERE username = :username LIMIT 1");
-        $stmt->execute([':username' => $username]);
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE username = :username OR email = :email LIMIT 1");
+        $stmt->execute([
+            ':username' => $username,
+            ':email'    => $username
+        ]);
         return $stmt->fetch();
     }
 

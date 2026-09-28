@@ -41,14 +41,12 @@
                 </div>
             </form>
         </div>
-        <div class="col-md-5 text-center ps-4">
-            <div class="py-3">
-                <i class="bi bi-fuel-pump-fill display-1 text-warning"></i>
-                <div class="fw-bold mt-2 fs-5">HAPPY GAS</div>
+        <div class="col-md-5 text-center ps-4 d-flex flex-column align-items-center justify-content-center gap-3">
+            <div>
+                <img src="<?= BASE_URL ?>/assets/img/happy-gas.png" alt="Happy Gas" class="img-fluid" style="max-height: 110px;">
             </div>
-            <hr>
-            <div class="py-2">
-                <div class="fw-bold text-danger fs-4">PHILLIPS 66</div>
+            <div>
+                <img src="<?= BASE_URL ?>/assets/img/phillips-66.png" alt="Phillips 66" class="img-fluid" style="max-height: 110px;">
             </div>
         </div>
     </div>

@@ -24,12 +24,12 @@ DROP TABLE IF EXISTS `areas`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `areas` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci,
+  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -41,15 +41,12 @@ DROP TABLE IF EXISTS `positions`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `positions` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `area_id` int DEFAULT NULL,
-  `title` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `description` text COLLATE utf8mb4_unicode_ci,
+  `name` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `fk_positions_areas` (`area_id`),
-  CONSTRAINT `fk_positions_areas` FOREIGN KEY (`area_id`) REFERENCES `areas` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -61,19 +58,39 @@ DROP TABLE IF EXISTS `users`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `users` (
   `id` int NOT NULL AUTO_INCREMENT,
-  `position_id` int DEFAULT NULL,
+  `employee_number` int NOT NULL,
   `first_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `last_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `email` varchar(150) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_name_paternal` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `last_name_maternal` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `username` varchar(80) COLLATE utf8mb4_unicode_ci NOT NULL,
   `password` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `role` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'user',
-  `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci DEFAULT 'active',
+  `email` varchar(150) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `role` enum('General Admin','Administrative Reporter','Operational Reporter','Collaborator') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Collaborator',
+  `area_id` int NOT NULL,
+  `position_id` int NOT NULL,
+  `supervisor_id` int DEFAULT NULL,
+  `counterpart_reporter_id` int DEFAULT NULL,
+  `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `nss` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `rfc` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `curp` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `birth_date` date DEFAULT NULL,
+  `address` text COLLATE utf8mb4_unicode_ci,
+  `avatar` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `status` enum('active','inactive') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `email` (`email`),
+  UNIQUE KEY `employee_number` (`employee_number`),
+  UNIQUE KEY `username` (`username`),
+  KEY `fk_users_areas` (`area_id`),
   KEY `fk_users_positions` (`position_id`),
-  CONSTRAINT `fk_users_positions` FOREIGN KEY (`position_id`) REFERENCES `positions` (`id`) ON DELETE SET NULL ON UPDATE CASCADE
+  KEY `fk_users_supervisor` (`supervisor_id`),
+  KEY `fk_users_counterpart` (`counterpart_reporter_id`),
+  CONSTRAINT `fk_users_areas` FOREIGN KEY (`area_id`) REFERENCES `areas` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_users_counterpart` FOREIGN KEY (`counterpart_reporter_id`) REFERENCES `users` (`id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_users_positions` FOREIGN KEY (`position_id`) REFERENCES `positions` (`id`) ON DELETE RESTRICT,
+  CONSTRAINT `fk_users_supervisor` FOREIGN KEY (`supervisor_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
@@ -86,4 +103,4 @@ CREATE TABLE `users` (
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-09-28  5:19:10
+-- Dump completed on 2026-09-28  5:27:04
