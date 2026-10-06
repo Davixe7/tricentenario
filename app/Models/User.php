@@ -15,22 +15,41 @@ class User {
         return $stmt->fetch();
     }
 
-    public function getAll($statusFilter = null) {
+    public function getAll($statusFilter = null, $search = null) {
         $sql = "SELECT u.*, a.name AS area_name, p.name AS position_name 
                 FROM users u
                 LEFT JOIN areas a ON u.area_id = a.id
-                LEFT JOIN positions p ON u.position_id = p.id";
+                LEFT JOIN positions p ON u.position_id = p.id
+                WHERE 1=1";
         
-        if ($statusFilter && $statusFilter !== 'all') {
-            $sql .= " WHERE u.status = :status";
+        $params = [];
+
+        if (!empty($statusFilter) && $statusFilter !== 'all') {
+            $sql .= " AND u.status = :status";
+            $params[':status'] = $statusFilter;
         }
+
+        if (!empty($search)) {
+            $sql .= " AND (
+                u.first_name LIKE :s1 
+                OR u.last_name_paternal LIKE :s2 
+                OR u.last_name_maternal LIKE :s3 
+                OR u.employee_number LIKE :s4 
+                OR u.username LIKE :s5 
+                OR u.email LIKE :s6 
+                OR u.curp LIKE :s7 
+                OR u.rfc LIKE :s8
+            )";
+            $searchTerm = '%' . $search . '%';
+            for ($i = 1; $i <= 8; $i++) {
+                $params[":s$i"] = $searchTerm;
+            }
+        }
+
         $sql .= " ORDER BY u.first_name ASC, u.last_name_paternal ASC";
 
         $stmt = $this->db->prepare($sql);
-        if ($statusFilter && $statusFilter !== 'all') {
-            $stmt->bindValue(':status', $statusFilter);
-        }
-        $stmt->execute();
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 
@@ -56,6 +75,7 @@ class User {
     }
 
     public function update($id, $data) {
+        unset($data['id']); // Evita duplicar el parámetro :id en el SET y WHERE
         $fields = [];
         foreach ($data as $key => $val) {
             $fields[] = "$key = :$key";
@@ -69,6 +89,64 @@ class User {
 
     public function softDelete($id) {
         $stmt = $this->db->prepare("UPDATE users SET status = 'inactive' WHERE id = :id");
+        return $stmt->execute([':id' => $id]);
+    }
+
+    // --- DOCUMENTOS OFICIALES ---
+
+    public function getDocumentsByUserId($userId) {
+        $stmt = $this->db->prepare("SELECT * FROM user_documents WHERE user_id = :user_id ORDER BY id DESC");
+        $stmt->execute([':user_id' => $userId]);
+        return $stmt->fetchAll();
+    }
+
+    public function getDocumentById($id) {
+        $stmt = $this->db->prepare("SELECT * FROM user_documents WHERE id = :id");
+        $stmt->execute([':id' => $id]);
+        return $stmt->fetch();
+    }
+
+    public function addDocument($userId, $description, $filePath) {
+        $stmt = $this->db->prepare("INSERT INTO user_documents (user_id, description, file_path) VALUES (:user_id, :description, :file_path)");
+        return $stmt->execute([
+            ':user_id' => $userId,
+            ':description' => $description,
+            ':file_path' => $filePath
+        ]);
+    }
+
+    public function deleteDocument($id) {
+        $stmt = $this->db->prepare("DELETE FROM user_documents WHERE id = :id");
+        return $stmt->execute([':id' => $id]);
+    }
+
+    // --- TRAYECTORIA ---
+
+    public function getTrajectoriesByUserId($userId) {
+        $stmt = $this->db->prepare("SELECT * FROM user_trajectories WHERE user_id = :user_id ORDER BY movement_date DESC, id DESC");
+        $stmt->execute([':user_id' => $userId]);
+        return $stmt->fetchAll();
+    }
+
+    public function getTrajectoryById($id) {
+        $stmt = $this->db->prepare("SELECT * FROM user_trajectories WHERE id = :id");
+        $stmt->execute([':id' => $id]);
+        return $stmt->fetch();
+    }
+
+    public function addTrajectory($userId, $movement, $movementDate, $rehireable, $notes) {
+        $stmt = $this->db->prepare("INSERT INTO user_trajectories (user_id, movement, movement_date, rehireable, notes) VALUES (:user_id, :movement, :movement_date, :rehireable, :notes)");
+        return $stmt->execute([
+            ':user_id' => $userId,
+            ':movement' => $movement,
+            ':movement_date' => $movementDate,
+            ':rehireable' => $rehireable,
+            ':notes' => $notes
+        ]);
+    }
+
+    public function deleteTrajectory($id) {
+        $stmt = $this->db->prepare("DELETE FROM user_trajectories WHERE id = :id");
         return $stmt->execute([':id' => $id]);
     }
 }

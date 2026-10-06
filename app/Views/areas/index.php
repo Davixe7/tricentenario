@@ -1,66 +1,79 @@
 <?php require_once __DIR__ . '/../layout/header.php'; ?>
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h4 class="fw-bold text-brand-dark mb-0">Configuración / Áreas</h4>
+    <h4 class="fw-bold text-brand-dark mb-0">Configuración / Áreas</h4>
+    <a href="<?= BASE_URL ?>/areas/create" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i> Nueva Área
+    </a>
+</div>
+
+<!-- Filtros por Estatus y Búsqueda -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body">
+        <form method="GET" action="<?= BASE_URL ?>/areas" class="row g-2 align-items-center">
+            <div class="col-md-3">
+                <?php $statusVal = $_GET['status'] ?? 'active'; ?>
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="active" <?= $statusVal === 'active' ? 'selected' : '' ?>>Activas</option>
+                    <option value="inactive" <?= $statusVal === 'inactive' ? 'selected' : '' ?>>Inactivas</option>
+                    <option value="all" <?= $statusVal === 'all' ? 'selected' : '' ?>>Todas las áreas</option>
+                </select>
+            </div>
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control" placeholder="Buscar área..." value="<?= htmlspecialchars($_GET['q'] ?? '') ?>">
+                    <button class="btn btn-primary" type="submit">Buscar</button>
+                    <?php if (!empty($_GET['q']) || (isset($_GET['status']) && $_GET['status'] !== 'active')): ?>
+                        <a href="<?= BASE_URL ?>/areas" class="btn btn-outline-secondary">Limpiar</a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </form>
     </div>
 </div>
 
+<!-- Tabla de Áreas -->
 <div class="card border-0 shadow-sm">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <ul class="nav nav-tabs border-0">
-                <li class="nav-item">
-                    <a class="nav-link active fw-bold" href="#">Lista de Áreas</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-brand-primary" href="<?= BASE_URL ?>/areas/create">Nueva Área</a>
-                </li>
-            </ul>
-
-            <div class="d-flex align-items-center gap-3">
-                <form method="GET" action="<?= BASE_URL ?>/areas" class="d-flex align-items-center gap-2">
-                    <label class="small text-muted fw-bold">Estatus:</label>
-                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="active" <?= ($statusFilter === 'active') ? 'selected' : '' ?>>Activo</option>
-                        <option value="inactive" <?= ($statusFilter === 'inactive') ? 'selected' : '' ?>>Inactivo</option>
-                        <option value="all" <?= ($statusFilter === 'all') ? 'selected' : '' ?>>Todos</option>
-                    </select>
-                </form>
-                <a href="<?= BASE_URL ?>/areas/create" class="btn btn-brand-primary btn-sm"><i class="bi bi-plus-circle me-1"></i> Nueva Área</a>
-            </div>
-        </div>
-
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover table-custom align-middle">
-                <thead>
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
                     <tr>
-                        <th>Nombre del Área</th>
+                        <th>Nombre de Área</th>
+                        <th>Descripción</th>
                         <th>Estatus</th>
-                        <th class="text-end">Acciones</th>
+                        <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (empty($areas)): ?>
-                        <tr><td colspan="3" class="text-center text-muted">No hay registros disponibles.</td></tr>
-                    <?php else: ?>
-                        <?php foreach ($areas as $a): ?>
+                    <?php if (!empty($areas)): ?>
+                        <?php foreach ($areas as $area): ?>
                             <tr>
-                                <td><?= htmlspecialchars($a['name']) ?></td>
+                                <td class="fw-semibold"><?= htmlspecialchars($area['name']) ?></td>
+                                <td><?= htmlspecialchars($area['description'] ?? '-') ?></td>
                                 <td>
-                                    <span class="badge bg-<?= $a['status'] === 'active' ? 'success' : 'secondary' ?>">
-                                        <?= ucfirst($a['status']) ?>
+                                    <span class="badge <?= ($area['status'] ?? 'active') === 'active' ? 'bg-success' : 'bg-danger' ?>">
+                                        <?= ($area['status'] ?? 'active') === 'active' ? 'Activo' : 'Inactivo' ?>
                                     </span>
                                 </td>
-                                <td class="text-end">
-                                    <a href="<?= BASE_URL ?>/areas/edit/<?= $a['id'] ?>" class="action-icon" data-bs-toggle="tooltip" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <form action="<?= BASE_URL ?>/areas/delete/<?= $a['id'] ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Desea desactivar esta área?');">
+                                <td class="text-center">
+                                    <a href="<?= BASE_URL ?>/areas/edit/<?= $area['id'] ?>" class="btn btn-sm btn-outline-primary me-1" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form method="POST" action="<?= BASE_URL ?>/areas/delete/<?= $area['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar área?')">
                                         <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
-                                        <button type="submit" class="border-0 bg-transparent p-0 action-icon delete" data-bs-toggle="tooltip" title="Eliminar"><i class="bi bi-trash"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
                                     </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">No se encontraron áreas.</td>
+                        </tr>
                     <?php endif; ?>
                 </tbody>
             </table>

@@ -1,61 +1,85 @@
 <?php require_once __DIR__ . '/../layout/header.php'; ?>
 
-<h4 class="fw-bold text-brand-dark mb-3">Configuración / Usuarios</h4>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="fw-bold text-brand-dark mb-0">Configuración / Usuarios</h4>
+    <a href="<?= BASE_URL ?>/users/create" class="btn btn-primary">
+        <i class="bi bi-plus-lg me-1"></i> Nuevo Usuario
+    </a>
+</div>
 
-<div class="card border-0 shadow-sm">
+<!-- Filtros por Estatus y Búsqueda -->
+<div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <ul class="nav nav-tabs border-0">
-                <li class="nav-item">
-                    <a class="nav-link active fw-bold" href="#">Lista de Usuarios</a>
-                </li>
-            </ul>
-
-            <div class="d-flex align-items-center gap-3">
-                <form method="GET" action="<?= BASE_URL ?>/users" class="d-flex align-items-center gap-2">
-                    <label class="small text-muted fw-bold">Estatus:</label>
-                    <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-                        <option value="active" <?= ($statusFilter === 'active') ? 'selected' : '' ?>>Activo</option>
-                        <option value="inactive" <?= ($statusFilter === 'inactive') ? 'selected' : '' ?>>Inactivo</option>
-                        <option value="all" <?= ($statusFilter === 'all') ? 'selected' : '' ?>>Todos</option>
-                    </select>
-                </form>
-                <a href="<?= BASE_URL ?>/users/create" class="btn btn-brand-primary btn-sm"><i class="bi bi-plus-circle me-1"></i> Nuevo Usuario</a>
+        <form method="GET" action="<?= BASE_URL ?>/users" class="row g-2 align-items-center">
+            <div class="col-md-3">
+                <?php $statusVal = $_GET['status'] ?? 'active'; ?>
+                <select name="status" class="form-select" onchange="this.form.submit()">
+                    <option value="active" <?= $statusVal === 'active' ? 'selected' : '' ?>>Activos</option>
+                    <option value="inactive" <?= $statusVal === 'inactive' ? 'selected' : '' ?>>Inactivos</option>
+                    <option value="all" <?= $statusVal === 'all' ? 'selected' : '' ?>>Todos los estatus</option>
+                </select>
             </div>
-        </div>
+            <div class="col-md-5">
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
+                    <input type="text" name="q" class="form-control" placeholder="Buscar por nombre, correo, usuario..." value="<?= htmlspecialchars($_GET['q'] ?? '') ?>">
+                    <button class="btn btn-primary" type="submit">Buscar</button>
+                    <?php if (!empty($_GET['q']) || (isset($_GET['status']) && $_GET['status'] !== 'active')): ?>
+                        <a href="<?= BASE_URL ?>/users" class="btn btn-outline-secondary">Limpiar</a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
 
+<!-- Tabla de Usuarios -->
+<div class="card border-0 shadow-sm">
+    <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover table-custom align-middle">
-                <thead>
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
                     <tr>
+                        <th>No. Empleado</th>
                         <th>Nombre</th>
-                        <th>Puesto</th>
-                        <th>Área</th>
-                        <th>Rol</th>
                         <th>Usuario</th>
-                        <th class="text-end">Acciones</th>
+                        <th>Correo</th>
+                        <th>Rol</th>
+                        <th>Estatus</th>
+                        <th class="text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <?php if (empty($users)): ?>
-                        <tr><td colspan="6" class="text-center text-muted">No hay registros disponibles.</td></tr>
-                    <?php else: ?>
+                    <?php if (!empty($users)): ?>
                         <?php foreach ($users as $u): ?>
                             <tr>
-                                <td><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name_paternal'] . ' ' . ($u['last_name_maternal'] ?? '')) ?></td>
-                                <td><?= htmlspecialchars($u['position_name'] ?? '-') ?></td>
-                                <td><?= htmlspecialchars($u['area_name'] ?? '-') ?></td>
-                                <td><?= htmlspecialchars($u['role']) ?></td>
+                                <td><?= htmlspecialchars($u['employee_number'] ?? '-') ?></td>
+                                <td class="fw-semibold"><?= htmlspecialchars(($u['first_name'] ?? '') . ' ' . ($u['last_name_paternal'] ?? '')) ?></td>
                                 <td><?= htmlspecialchars($u['username']) ?></td>
-                                <td class="text-end">
-                                    <a href="<?= BASE_URL ?>/users/edit/<?= $u['id'] ?>" class="action-icon" data-bs-toggle="tooltip" title="Editar"><i class="bi bi-pencil"></i></a>
-                                    <form action="<?= BASE_URL ?>/users/delete/<?= $u['id'] ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Desea desactivar este usuario?');">
+                                <td><?= htmlspecialchars($u['email'] ?? '-') ?></td>
+                                <td><span class="badge bg-secondary"><?= htmlspecialchars($u['role']) ?></span></td>
+                                <td>
+                                    <span class="badge <?= $u['status'] === 'active' ? 'bg-success' : 'bg-danger' ?>">
+                                        <?= $u['status'] === 'active' ? 'Activo' : 'Inactivo' ?>
+                                    </span>
+                                </td>
+                                <td class="text-center">
+                                    <a href="<?= BASE_URL ?>/users/edit/<?= $u['id'] ?>" class="btn btn-sm btn-outline-primary me-1" title="Editar">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <form method="POST" action="<?= BASE_URL ?>/users/delete/<?= $u['id'] ?>" class="d-inline" onsubmit="return confirm('¿Desea eliminar este usuario?')">
                                         <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
-                                        <button type="submit" class="border-0 bg-transparent p-0 action-icon delete" data-bs-toggle="tooltip" title="Eliminar"><i class="bi bi-trash"></i></button>
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
                                     </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">No se encontraron usuarios.</td>
+                        </tr>
                     <?php endif; ?>
                 </tbody>
             </table>

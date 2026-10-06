@@ -11,7 +11,8 @@ class AreaController {
 
     public function index() {
         $statusFilter = $_GET['status'] ?? 'active';
-        $areas = $this->areaModel->getAll($statusFilter);
+        $searchFilter = trim($_GET['search'] ?? ($_GET['q'] ?? ''));
+        $areas = $this->areaModel->getAll($statusFilter, $searchFilter);
         require_once __DIR__ . '/../Views/areas/index.php';
     }
 

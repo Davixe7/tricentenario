@@ -17,7 +17,8 @@ class UserController {
 
     public function index() {
         $statusFilter = $_GET['status'] ?? 'active';
-        $users = $this->userModel->getAll($statusFilter);
+        $searchFilter = trim($_GET['q'] ?? ($_GET['search'] ?? ''));
+        $users = $this->userModel->getAll($statusFilter, $searchFilter);
         require_once __DIR__ . '/../Views/users/index.php';
     }
 
@@ -26,6 +27,8 @@ class UserController {
         $areas = $this->areaModel->getAll('active');
         $positions = $this->positionModel->getAll('active');
         $activeUsers = $this->userModel->getAll('active');
+        $documents = [];
+        $trajectories = [];
         require_once __DIR__ . '/../Views/users/form.php';
     }
 
@@ -42,7 +45,7 @@ class UserController {
         }
 
         $data = [
-            'employee_number' => (int)$_POST['employee_number'],
+            'employee_number' => !empty($_POST['employee_number']) ? (int)$_POST['employee_number'] : null,
             'first_name' => trim($_POST['first_name']),
             'last_name_paternal' => trim($_POST['last_name_paternal']),
             'last_name_maternal' => trim($_POST['last_name_maternal'] ?? ''),
@@ -50,8 +53,8 @@ class UserController {
             'password' => password_hash($_POST['password'], PASSWORD_BCRYPT),
             'email' => trim($_POST['email'] ?? ''),
             'role' => $_POST['role'],
-            'area_id' => (int)$_POST['area_id'],
-            'position_id' => (int)$_POST['position_id'],
+            'area_id' => !empty($_POST['area_id']) ? (int)$_POST['area_id'] : null,
+            'position_id' => !empty($_POST['position_id']) ? (int)$_POST['position_id'] : null,
             'supervisor_id' => !empty($_POST['supervisor_id']) ? (int)$_POST['supervisor_id'] : null,
             'counterpart_reporter_id' => !empty($_POST['counterpart_reporter_id']) ? (int)$_POST['counterpart_reporter_id'] : null,
             'phone' => trim($_POST['phone'] ?? ''),
@@ -79,6 +82,10 @@ class UserController {
         $areas = $this->areaModel->getAll('active');
         $positions = $this->positionModel->getAll('active');
         $activeUsers = $this->userModel->getAll('active');
+
+        $documents = $this->userModel->getDocumentsByUserId($id);
+        $trajectories = $this->userModel->getTrajectoriesByUserId($id);
+
         require_once __DIR__ . '/../Views/users/form.php';
     }
 
@@ -87,18 +94,16 @@ class UserController {
             die('Invalid CSRF Token');
         }
 
-        $existingUser = $this->userModel->find($id);
-
         $data = [
-            'employee_number' => (int)$_POST['employee_number'],
+            'employee_number' => !empty($_POST['employee_number']) ? (int)$_POST['employee_number'] : null,
             'first_name' => trim($_POST['first_name']),
             'last_name_paternal' => trim($_POST['last_name_paternal']),
             'last_name_maternal' => trim($_POST['last_name_maternal'] ?? ''),
             'username' => trim($_POST['username']),
             'email' => trim($_POST['email'] ?? ''),
             'role' => $_POST['role'],
-            'area_id' => (int)$_POST['area_id'],
-            'position_id' => (int)$_POST['position_id'],
+            'area_id' => !empty($_POST['area_id']) ? (int)$_POST['area_id'] : null,
+            'position_id' => !empty($_POST['position_id']) ? (int)$_POST['position_id'] : null,
             'supervisor_id' => !empty($_POST['supervisor_id']) ? (int)$_POST['supervisor_id'] : null,
             'counterpart_reporter_id' => !empty($_POST['counterpart_reporter_id']) ? (int)$_POST['counterpart_reporter_id'] : null,
             'phone' => trim($_POST['phone'] ?? ''),
@@ -132,6 +137,98 @@ class UserController {
         }
 
         $this->userModel->softDelete($id);
+        header('Location: ' . BASE_URL . '/users');
+        exit;
+    }
+
+    // --- ACCIONES DOCUMENTOS ---
+
+    public function uploadDocument() {
+        if (!CSRF::validateToken($_POST['csrf_token'] ?? '')) {
+            die('Invalid CSRF Token');
+        }
+
+        $userId = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
+        $description = trim($_POST['description'] ?? '');
+
+        if ($userId && $description && isset($_FILES['document']) && $_FILES['document']['error'] === UPLOAD_ERR_OK) {
+            $ext = pathinfo($_FILES['document']['name'], PATHINFO_EXTENSION);
+            $filename = 'doc_' . $userId . '_' . time() . '.' . $ext;
+
+            $uploadDir = UPLOAD_DIR . 'documents/';
+            if (!is_dir($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+
+            if (move_uploaded_file($_FILES['document']['tmp_name'], $uploadDir . $filename)) {
+                $filePath = 'uploads/documents/' . $filename;
+                $this->userModel->addDocument($userId, $description, $filePath);
+            }
+        }
+
+        if ($userId) {
+            header('Location: ' . BASE_URL . '/users/edit/' . $userId);
+        } else {
+            header('Location: ' . BASE_URL . '/users');
+        }
+        exit;
+    }
+
+    public function deleteDocument($id) {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !CSRF::validateToken($_POST['csrf_token'] ?? '')) {
+            die('Invalid CSRF Token');
+        }
+
+        $doc = $this->userModel->getDocumentById($id);
+        if ($doc) {
+            $fullPath = UPLOAD_DIR . 'documents/' . basename($doc['file_path']);
+            if (file_exists($fullPath)) {
+                @unlink($fullPath);
+            }
+            $this->userModel->deleteDocument($id);
+            header('Location: ' . BASE_URL . '/users/edit/' . $doc['user_id']);
+            exit;
+        }
+        header('Location: ' . BASE_URL . '/users');
+        exit;
+    }
+
+    // --- ACCIONES TRAYECTORIA ---
+
+    public function addTrajectory() {
+        header('Content-Type: application/json');
+
+        if (!CSRF::validateToken($_POST['csrf_token'] ?? '')) {
+            echo json_encode(['success' => false, 'message' => 'Invalid CSRF Token']);
+            exit;
+        }
+
+        $userId = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
+        $movement = $_POST['movement'] ?? null;
+        $movementDate = $_POST['movement_date'] ?? null;
+        $rehireable = $_POST['rehireable'] ?? 'Si';
+        $notes = trim($_POST['notes'] ?? '');
+
+        if ($userId && $movement && $movementDate) {
+            $inserted = $this->userModel->addTrajectory($userId, $movement, $movementDate, $rehireable, $notes);
+            echo json_encode(['success' => (bool)$inserted]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Datos incompletos']);
+        }
+        exit;
+    }
+
+    public function deleteTrajectory($id) {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !CSRF::validateToken($_POST['csrf_token'] ?? '')) {
+            die('Invalid CSRF Token');
+        }
+
+        $tray = $this->userModel->getTrajectoryById($id);
+        if ($tray) {
+            $this->userModel->deleteTrajectory($id);
+            header('Location: ' . BASE_URL . '/users/edit/' . $tray['user_id']);
+            exit;
+        }
         header('Location: ' . BASE_URL . '/users');
         exit;
     }

@@ -6,18 +6,24 @@ class Position {
         $this->db = Database::getInstance();
     }
 
-    public function getAll($statusFilter = null) {
-        $sql = "SELECT * FROM positions";
+    public function getAll($statusFilter = null, $search = null) {
+        $sql = "SELECT * FROM positions WHERE 1=1";
+        $params = [];
+
         if ($statusFilter && $statusFilter !== 'all') {
-            $sql .= " WHERE status = :status";
+            $sql .= " AND status = :status";
+            $params[':status'] = $statusFilter;
         }
+
+        if (!empty($search)) {
+            $sql .= " AND name LIKE :search";
+            $params[':search'] = '%' . $search . '%';
+        }
+
         $sql .= " ORDER BY name ASC";
         
         $stmt = $this->db->prepare($sql);
-        if ($statusFilter && $statusFilter !== 'all') {
-            $stmt->bindValue(':status', $statusFilter);
-        }
-        $stmt->execute();
+        $stmt->execute($params);
         return $stmt->fetchAll();
     }
 

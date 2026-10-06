@@ -11,7 +11,8 @@ class PositionController {
 
     public function index() {
         $statusFilter = $_GET['status'] ?? 'active';
-        $positions = $this->positionModel->getAll($statusFilter);
+        $searchFilter = trim($_GET['search'] ?? ($_GET['q'] ?? ''));
+        $positions = $this->positionModel->getAll($statusFilter, $searchFilter);
         require_once __DIR__ . '/../Views/positions/index.php';
     }
 
