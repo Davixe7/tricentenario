@@ -20,6 +20,7 @@ $router = new Router();
 $router->add('GET', '/login', 'AuthController@showLogin');
 $router->add('POST', '/login', 'AuthController@login');
 $router->add('GET', '/logout', 'AuthController@logout');
+$router->add('POST', '/change-password', 'AuthController@changePassword');
 
 // Dashboard redirect
 $router->add('GET', '/', 'UserController@index');
