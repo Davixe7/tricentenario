@@ -31,10 +31,14 @@ class AuthController {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user'] = [
                 'id' => $user['id'],
-                'name' => $user['first_name'] . ' ' . $user['last_name_paternal'],
-                'username' => $user['username'],
-                'role' => $user['role']
+                'name' => trim(($user['first_name'] ?? '') . ' ' . ($user['last_name_paternal'] ?? '')),
+                'first_name' => $user['first_name'] ?? '',
+                'last_name_paternal' => $user['last_name_paternal'] ?? '',
+                'username' => $user['username'] ?? '',
+                'role' => $user['role'] ?? '',
+                'avatar' => $user['avatar'] ?? null
             ];
+
             header('Location: ' . BASE_URL . '/users');
             exit;
         }

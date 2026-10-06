@@ -11,14 +11,12 @@
 <body>
 <div class="d-flex">
     <aside class="sidebar">
-        <!-- Logo Sidebar Top Header -->
         <div class="p-3 text-center border-bottom d-flex align-items-center justify-content-center gap-2">
             <img src="<?= BASE_URL ?>/assets/img/phillips-66.png" alt="Phillips 66" style="max-height: 38px;">
             <img src="<?= BASE_URL ?>/assets/img/happy-gas.png" alt="Happy Gas" style="max-height: 38px;">
         </div>
 
         <nav class="nav flex-column mt-3">
-            <!-- 1. Configuración (Solo Administrador General) -->
             <?php if ((Auth::user()['role'] ?? '') === 'General Admin'): ?>
                 <div class="nav-item">
                     <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#configDropdown" role="button" aria-expanded="false" aria-controls="configDropdown">
@@ -42,7 +40,6 @@
                 </div>
             <?php endif; ?>
 
-            <!-- 2. Capacitación (Visible para todos) -->
             <div class="nav-item">
                 <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#capacitacionDropdown" role="button" aria-expanded="false" aria-controls="capacitacionDropdown">
                     <span class="d-flex align-items-center">
@@ -58,7 +55,6 @@
                 </div>
             </div>
 
-            <!-- 3. Plantillas (Visible para todos) -->
             <div class="nav-item">
                 <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#plantillasDropdown" role="button" aria-expanded="false" aria-controls="plantillasDropdown">
                     <span class="d-flex align-items-center">
@@ -74,7 +70,6 @@
                 </div>
             </div>
 
-            <!-- 4. Boleta (Visible para todos) -->
             <div class="nav-item">
                 <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#boletaDropdown" role="button" aria-expanded="false" aria-controls="boletaDropdown">
                     <span class="d-flex align-items-center">
@@ -93,11 +88,118 @@
     </aside>
 
     <div class="flex-grow-1">
-        <header class="bg-brand-dark text-white p-3 d-flex justify-content-between align-items-center">
-            <span class="fw-bold">Modelo de Desarrollo Humano Integral</span>
-            <div>
-                <span class="me-3"><?= htmlspecialchars(Auth::user()['name'] ?? '') ?></span>
-                <a href="<?= BASE_URL ?>/logout" class="btn btn-sm btn-outline-light"><i class="bi bi-box-arrow-right"></i> Salir</a>
+        <header class="bg-brand-dark text-white px-4 py-3 d-flex justify-content-between align-items-center">
+            <span class="fw-bold fs-5">Modelo de Desarrollo Humano Integral</span>
+            
+            <div class="d-flex align-items-center gap-3">
+                <button type="button" class="btn btn-link text-white p-0 position-relative text-decoration-none me-2" title="Notificaciones">
+                    <i class="bi bi-bell fs-4"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-danger p-1" style="font-size: 0.65rem;">
+                        1
+                    </span>
+                </button>
+
+                <div class="dropdown">
+                    <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+<?php 
+                            $userSession = Auth::user() ?? $_SESSION['user'] ?? [];
+                            $userId = $userSession['id'] ?? null;
+                            $photo = $userSession['avatar'] ?? '';
+
+                            // Consulta directa si el avatar no viene en sesión
+                            if (empty($photo) && $userId && class_exists('Database')) {
+                                try {
+                                    $db = Database::getInstance()->getConnection();
+                                    $stmt = $db->prepare("SELECT avatar, first_name, last_name_paternal FROM users WHERE id = ?");
+                                    $stmt->execute([$userId]);
+                                    // Forzar FETCH_ASSOC para evitar fallos si PDO está en FETCH_OBJ
+                                    $uData = $stmt->fetch(PDO::FETCH_ASSOC);
+                                    
+                                    if ($uData && !empty($uData['avatar'])) {
+                                        $photo = $uData['avatar'];
+                                        $_SESSION['user']['avatar'] = $photo;
+                                    }
+                                } catch (\Throwable $e) {}
+                            }
+
+                            // Nombre del usuario
+                            $firstName = $userSession['first_name'] ?? '';
+                            $lastName = $userSession['last_name_paternal'] ?? '';
+                            $userName = trim("$firstName $lastName");
+                            if (empty($userName)) {
+                                $userName = $userSession['name'] ?? $userSession['username'] ?? 'Usuario';
+                            }
+
+                            $defaultAvatar = 'https://ui-avatars.com/api/?name=' . urlencode($userName) . '&background=0D8ABC&color=fff';
+
+                            // Armado de URL del avatar
+                            if (!empty($photo)) {
+                                $cleanPath = ltrim($photo, '/');
+                                if (str_starts_with($cleanPath, 'http://') || str_starts_with($cleanPath, 'https://')) {
+                                    $avatarSrc = $cleanPath;
+                                } elseif (str_starts_with($cleanPath, 'uploads/')) {
+                                    $avatarSrc = BASE_URL . '/' . $cleanPath;
+                                } else {
+                                    $avatarSrc = BASE_URL . '/uploads/' . $cleanPath;
+                                }
+                            } else {
+                                $avatarSrc = $defaultAvatar;
+                            }
+                        ?>
+                        <img src="<?= htmlspecialchars($avatarSrc) ?>" 
+                             alt="Avatar" 
+                             class="rounded-circle me-2 object-fit-cover" 
+                             style="width: 36px; height: 36px; border: 1px solid rgba(255,255,255,0.3);"
+                             onerror="this.onerror=null; this.src='<?= $defaultAvatar ?>';">
+                        <span class="fw-semibold me-1"><?= htmlspecialchars($userName) ?></span>
+                    </a>
+                    
+                    <ul class="dropdown-menu dropdown-menu-end shadow border-0 mt-2" aria-labelledby="userDropdown">
+                        <li>
+                            <button type="button" class="dropdown-item py-2 d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                <i class="bi bi-key me-2 text-primary"></i> Cambiar contraseña
+                            </button>
+                        </li>
+                        <li><hr class="dropdown-divider my-1"></li>
+                        <li>
+                            <a class="dropdown-item py-2 d-flex align-items-center text-danger" href="<?= BASE_URL ?>/logout">
+                                <i class="bi bi-box-arrow-right me-2"></i> Cerrar sesión
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </header>
+
+        <div class="modal fade text-dark" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow">
+                    <div class="modal-header bg-brand-dark text-white">
+                        <h5 class="modal-title" id="changePasswordModalLabel"><i class="bi bi-shield-lock me-2"></i>Cambiar Contraseña</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form action="<?= BASE_URL ?>/change-password" method="POST">
+                        <div class="modal-body p-4">
+                            <div class="mb-3">
+                                <label for="current_password" class="form-label fw-semibold">Contraseña Actual</label>
+                                <input type="password" class="form-control" id="current_password" name="current_password" required placeholder="••••••••">
+                            </div>
+                            <div class="mb-3">
+                                <label for="new_password" class="form-label fw-semibold">Nueva Contraseña</label>
+                                <input type="password" class="form-control" id="new_password" name="new_password" required minlength="6" placeholder="Mínimo 6 caracteres">
+                            </div>
+                            <div class="mb-3">
+                                <label for="confirm_password" class="form-label fw-semibold">Confirmar Nueva Contraseña</label>
+                                <input type="password" class="form-control" id="confirm_password" name="confirm_password" required placeholder="Repite la contraseña">
+                            </div>
+                        </div>
+                        <div class="modal-footer bg-light">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Actualizar</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <main class="p-4">
