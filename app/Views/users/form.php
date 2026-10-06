@@ -1,10 +1,68 @@
 <?php require_once __DIR__ . '/../layout/header.php'; ?>
 
-<h4 class="fw-bold text-brand-dark mb-3">Configuración / Usuarios</h4>
+<style>
+/* Estilos para el diseño reticular de formulario */
+.form-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #dce5ef;
+}
+.form-table td {
+    padding: 6px 12px;
+    vertical-align: middle;
+    border: 1px solid #dce5ef;
+}
+.form-table td.label-col {
+    background-color: #eef6fc;
+    font-weight: 600;
+    width: 35%;
+    color: #212529;
+    font-size: 0.9rem;
+}
+.form-table td.input-col {
+    background-color: #ffffff;
+}
+.form-table .form-control, 
+.form-table .form-select {
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+/* Contenedor Drag & Drop para Fotografía */
+.drop-zone {
+    border: 2px dashed #0d6efd;
+    border-radius: 8px;
+    padding: 15px;
+    text-align: center;
+    background-color: #f8fafc;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+.drop-zone:hover, .drop-zone.dragover {
+    background-color: #eef6fc;
+    border-color: #0b5ed7;
+}
+.avatar-preview-img {
+    max-width: 150px;
+    max-height: 150px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+</style>
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+    <h4 class="fw-bold text-brand-dark mb-0">Configuración / Usuarios</h4>
+</div>
+
+<!-- Navegación por pestañas superiores -->
+<div class="mb-3">
+    <a href="<?= BASE_URL ?>/users" class="btn btn-primary me-1">Lista de Usuarios</a>
+    <span class="btn btn-light border fw-bold active"><?= $user ? 'Editar Usuario' : 'Nuevo Usuario' ?></span>
+</div>
 
 <div class="card border-0 shadow-sm">
     <div class="card-body p-4">
-        <h5 class="fw-bold mb-4"><?= $user ? 'Editar Usuario' : 'Nuevo Usuario' ?></h5>
 
         <form action="<?= $user ? BASE_URL . '/users/update/' . $user['id'] : BASE_URL . '/users/store' ?>" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
@@ -12,131 +70,193 @@
 
             <!-- INFORMACIÓN LABORAL -->
             <h6 class="fw-bold text-brand-dark border-bottom pb-2 mb-3">INFORMACIÓN LABORAL</h6>
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">No. Empleado: <span class="text-danger">*</span></label>
-                    <input type="number" name="employee_number" class="form-control" value="<?= htmlspecialchars($user['employee_number'] ?? '') ?>" required>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Nombre(s): <span class="text-danger">*</span></label>
-                    <input type="text" name="first_name" class="form-control" value="<?= htmlspecialchars($user['first_name'] ?? '') ?>" required>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Apellido Paterno: <span class="text-danger">*</span></label>
-                    <input type="text" name="last_name_paternal" class="form-control" value="<?= htmlspecialchars($user['last_name_paternal'] ?? '') ?>" required>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Apellido Materno:</label>
-                    <input type="text" name="last_name_maternal" class="form-control" value="<?= htmlspecialchars($user['last_name_maternal'] ?? '') ?>">
+            <div class="row g-4 mb-4">
+                <!-- Columna Izquierda: Formulario en Tabla -->
+                <div class="col-lg-7">
+                    <table class="form-table">
+                        <tbody>
+                            <tr>
+                                <td class="label-col">No. Empleado: <span class="text-danger">*</span></td>
+                                <td class="input-col">
+                                    <input type="number" step="1" name="employee_number" class="form-control form-control-sm" value="<?= htmlspecialchars($user['employee_number'] ?? '') ?>" required placeholder="Campo numérico sin decimales">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Nombre(s): <span class="text-danger">*</span></td>
+                                <td class="input-col">
+                                    <input type="text" name="first_name" class="form-control form-control-sm" value="<?= htmlspecialchars($user['first_name'] ?? '') ?>" required>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Apellido Paterno: <span class="text-danger">*</span></td>
+                                <td class="input-col">
+                                    <input type="text" name="last_name_paternal" class="form-control form-control-sm" value="<?= htmlspecialchars($user['last_name_paternal'] ?? '') ?>" required>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Apellido Materno:</td>
+                                <td class="input-col">
+                                    <input type="text" name="last_name_maternal" class="form-control form-control-sm" value="<?= htmlspecialchars($user['last_name_maternal'] ?? '') ?>">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Puesto: <span class="text-danger">*</span></td>
+                                <td class="input-col">
+                                    <select name="position_id" class="form-select form-select-sm" required>
+                                        <option value="">-- Seleccionar Puesto --</option>
+                                        <?php foreach ($positions as $p): ?>
+                                            <option value="<?= $p['id'] ?>" <?= (($user['position_id'] ?? '') == $p['id']) ? 'selected' : '' ?>><?= htmlspecialchars($p['name']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Área: <span class="text-danger">*</span></td>
+                                <td class="input-col">
+                                    <select name="area_id" class="form-select form-select-sm" required>
+                                        <option value="">-- Seleccionar Área --</option>
+                                        <?php foreach ($areas as $a): ?>
+                                            <option value="<?= $a['id'] ?>" <?= (($user['area_id'] ?? '') == $a['id']) ? 'selected' : '' ?>><?= htmlspecialchars($a['name']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Jefe Inmediato: <span class="text-danger">*</span></td>
+                                <td class="input-col">
+                                    <select name="supervisor_id" class="form-select form-select-sm">
+                                        <option value="">-- Ninguno --</option>
+                                        <?php foreach ($activeUsers as $u): ?>
+                                            <option value="<?= $u['id'] ?>" <?= (($user['supervisor_id'] ?? '') == $u['id']) ? 'selected' : '' ?>><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name_paternal']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Usuario sistema: <span class="text-danger">*</span></td>
+                                <td class="input-col">
+                                    <input type="text" name="username" class="form-control form-control-sm" value="<?= htmlspecialchars($user['username'] ?? '') ?>" required>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Contraseña: <?= $user ? '<span class="text-muted">(Opcional)</span>' : '<span class="text-danger">*</span>' ?></td>
+                                <td class="input-col">
+                                    <div class="input-group input-group-sm">
+                                        <input type="password" id="pwdInput" name="password" class="form-control" <?= $user ? '' : 'required' ?>>
+                                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword()"><i class="bi bi-eye"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Rol (en sistema): <span class="text-danger">*</span></td>
+                                <td class="input-col">
+                                    <select name="role" id="roleSelect" class="form-select form-select-sm" onchange="checkRole()" required>
+                                        <option value="General Admin" <?= (($user['role'] ?? '') === 'General Admin') ? 'selected' : '' ?>>Administrador General</option>
+                                        <option value="Administrative Reporter" <?= (($user['role'] ?? '') === 'Administrative Reporter') ? 'selected' : '' ?>>Reportero Administrativo</option>
+                                        <option value="Operational Reporter" <?= (($user['role'] ?? '') === 'Operational Reporter') ? 'selected' : '' ?>>Reportero Operativo</option>
+                                        <option value="Collaborator" <?= (($user['role'] ?? '') === 'Collaborator') ? 'selected' : '' ?>>Colaborador</option>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Correo electrónico:</td>
+                                <td class="input-col">
+                                    <input type="email" name="email" class="form-control form-control-sm" value="<?= htmlspecialchars($user['email'] ?? '') ?>" placeholder="Opcional">
+                                </td>
+                            </tr>
+                            <tr id="counterpartTr">
+                                <td class="label-col">Reportero Contraparte:</td>
+                                <td class="input-col">
+                                    <select name="counterpart_reporter_id" class="form-select form-select-sm">
+                                        <option value="">-- Seleccionar --</option>
+                                        <?php foreach ($activeUsers as $u): ?>
+                                            <option value="<?= $u['id'] ?>" <?= (($user['counterpart_reporter_id'] ?? '') == $u['id']) ? 'selected' : '' ?>><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name_paternal']) ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Estatus: <span class="text-danger">*</span></td>
+                                <td class="input-col">
+                                    <select name="status" class="form-select form-select-sm">
+                                        <option value="active" <?= (($user['status'] ?? 'active') === 'active') ? 'selected' : '' ?>>Activo</option>
+                                        <option value="inactive" <?= (($user['status'] ?? '') === 'inactive') ? 'selected' : '' ?>>Inactivo</option>
+                                    </select>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
 
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Puesto: <span class="text-danger">*</span></label>
-                    <select name="position_id" class="form-select" required>
-                        <option value="">-- Seleccionar --</option>
-                        <?php foreach ($positions as $p): ?>
-                            <option value="<?= $p['id'] ?>" <?= (($user['position_id'] ?? '') == $p['id']) ? 'selected' : '' ?>><?= htmlspecialchars($p['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Área: <span class="text-danger">*</span></label>
-                    <select name="area_id" class="form-select" required>
-                        <option value="">-- Seleccionar --</option>
-                        <?php foreach ($areas as $a): ?>
-                            <option value="<?= $a['id'] ?>" <?= (($user['area_id'] ?? '') == $a['id']) ? 'selected' : '' ?>><?= htmlspecialchars($a['name']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Jefe Inmediato: <span class="text-danger">*</span></label>
-                    <select name="supervisor_id" class="form-select">
-                        <option value="">-- Ninguno --</option>
-                        <?php foreach ($activeUsers as $u): ?>
-                            <option value="<?= $u['id'] ?>" <?= (($user['supervisor_id'] ?? '') == $u['id']) ? 'selected' : '' ?>><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name_paternal']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Usuario sistema: <span class="text-danger">*</span></label>
-                    <input type="text" name="username" class="form-control" value="<?= htmlspecialchars($user['username'] ?? '') ?>" required>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Contraseña: <?= $user ? '<span class="text-muted">(Opcional)</span>' : '<span class="text-danger">*</span>' ?></label>
-                    <div class="input-group">
-                        <input type="password" id="pwdInput" name="password" class="form-control" <?= $user ? '' : 'required' ?>>
-                        <button class="btn btn-outline-secondary" type="button" onclick="togglePassword()"><i class="bi bi-eye"></i></button>
+                <!-- Columna Derecha: Subida Drag & Drop e Imagen -->
+                <div class="col-lg-5 d-flex flex-column align-items-center">
+                    <input type="file" name="avatar" id="avatarInput" class="d-none" accept="image/png, image/jpeg">
+                    
+                    <div class="drop-zone w-100 mb-2" id="dropZone">
+                        <i class="bi bi-cloud-arrow-up display-5 text-primary mb-2"></i>
+                        <p class="mb-1 fw-bold text-secondary">Arrastra o haz click aquí para subir imagen.</p>
                     </div>
-                </div>
+                    
+                    <div class="text-muted small text-center mb-3">
+                        <i class="bi bi-info-circle text-primary me-1"></i>
+                        Tamaño sugerido: 11 cm x 11 cm. Peso máximo: 2MB. Formatos aceptados: <strong>JPG y PNG</strong>.
+                    </div>
 
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Rol (en sistema): <span class="text-danger">*</span></label>
-                    <select name="role" id="roleSelect" class="form-select" onchange="checkRole()" required>
-                        <option value="General Admin" <?= (($user['role'] ?? '') === 'General Admin') ? 'selected' : '' ?>>Administrador General</option>
-                        <option value="Administrative Reporter" <?= (($user['role'] ?? '') === 'Administrative Reporter') ? 'selected' : '' ?>>Reportero Administrativo</option>
-                        <option value="Operational Reporter" <?= (($user['role'] ?? '') === 'Operational Reporter') ? 'selected' : '' ?>>Reportero Operativo</option>
-                        <option value="Collaborator" <?= (($user['role'] ?? '') === 'Collaborator') ? 'selected' : '' ?>>Colaborador</option>
-                    </select>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Correo electrónico:</label>
-                    <input type="email" name="email" class="form-control" value="<?= htmlspecialchars($user['email'] ?? '') ?>">
-                </div>
-
-                <div class="col-md-4" id="counterpartDiv">
-                    <label class="form-label fw-semibold">Reportero Contraparte:</label>
-                    <select name="counterpart_reporter_id" class="form-select">
-                        <option value="">-- Seleccionar --</option>
-                        <?php foreach ($activeUsers as$u): ?>
-                            <option value="<?= $u['id'] ?>" <?= (($user['counterpart_reporter_id'] ?? '') ==$u['id']) ? 'selected' : '' ?>><?= htmlspecialchars($u['first_name'] . ' ' .$u['last_name_paternal']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <div class="col-md-4">
-                    <label class="form-label fw-semibold">Estatus: <span class="text-danger">*</span></label>
-                    <select name="status" class="form-select">
-                        <option value="active" <?= (($user['status'] ?? 'active') === 'active') ? 'selected' : '' ?>>Activo</option>
-                        <option value="inactive" <?= (($user['status'] ?? '') === 'inactive') ? 'selected' : '' ?>>Inactivo</option>
-                    </select>
+                    <div id="avatarPreviewContainer" class="text-center mt-2">
+                        <?php 
+                            $avatarSrc = !empty($user['avatar']) 
+                                ? BASE_URL . '/uploads/' . $user['avatar'] 
+                                : BASE_URL . '/assets/img/default-avatar.png';
+                        ?>
+                        <img id="avatarPreview" src="<?= $avatarSrc ?>" alt="Vista previa" class="avatar-preview-img shadow-sm" onerror="this.src='https://via.placeholder.com/150?text=Sin+Imagen'">
+                    </div>
                 </div>
             </div>
 
             <!-- INFORMACIÓN PERSONAL -->
             <h6 class="fw-bold text-brand-dark border-bottom pb-2 mb-3">INFORMACIÓN PERSONAL</h6>
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Teléfono: <span class="text-danger">*</span></label>
-                    <input type="text" name="phone" class="form-control" value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">NSS: <span class="text-danger">*</span></label>
-                    <input type="text" name="nss" class="form-control" value="<?= htmlspecialchars($user['nss'] ?? '') ?>">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">R.F.C.:</label>
-                    <input type="text" name="rfc" class="form-control text-uppercase" value="<?= htmlspecialchars($user['rfc'] ?? '') ?>">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">CURP:</label>
-                    <input type="text" name="curp" id="curpInput" class="form-control text-uppercase" value="<?= htmlspecialchars($user['curp'] ?? '') ?>" maxlength="18">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-semibold">Fecha Nacimiento:</label>
-                    <input type="date" name="birth_date" id="birthDateInput" class="form-control" value="<?= htmlspecialchars($user['birth_date'] ?? '') ?>">
-                </div>
-                <div class="col-md-9">
-                    <label class="form-label fw-semibold">Dirección:</label>
-                    <textarea name="address" class="form-control" rows="2"><?= htmlspecialchars($user['address'] ?? '') ?></textarea>
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold">Fotografía de perfil:</label>
-                    <input type="file" name="avatar" class="form-control" accept="image/*">
+            <div class="row mb-4">
+                <div class="col-lg-7">
+                    <table class="form-table">
+                        <tbody>
+                            <tr>
+                                <td class="label-col">Teléfono: <span class="text-danger">*</span></td>
+                                <td class="input-col">
+                                    <input type="text" name="phone" class="form-control form-control-sm" value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">NSS: <span class="text-danger">*</span></td>
+                                <td class="input-col">
+                                    <input type="text" name="nss" class="form-control form-control-sm" value="<?= htmlspecialchars($user['nss'] ?? '') ?>">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">R.F.C.:</td>
+                                <td class="input-col">
+                                    <input type="text" name="rfc" class="form-control form-control-sm text-uppercase" value="<?= htmlspecialchars($user['rfc'] ?? '') ?>">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">CURP:</td>
+                                <td class="input-col">
+                                    <input type="text" name="curp" id="curpInput" class="form-control form-control-sm text-uppercase" value="<?= htmlspecialchars($user['curp'] ?? '') ?>" maxlength="18">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Fecha Nacimiento:</td>
+                                <td class="input-col">
+                                    <input type="date" name="birth_date" id="birthDateInput" class="form-control form-control-sm bg-light" value="<?= htmlspecialchars($user['birth_date'] ?? '') ?>" readonly title="Llenado automático desde la CURP">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="label-col">Dirección:</td>
+                                <td class="input-col">
+                                    <textarea name="address" class="form-control form-control-sm" rows="3" placeholder="Campo de texto amplio"><?= htmlspecialchars($user['address'] ?? '') ?></textarea>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -145,7 +265,7 @@
                 <h6 class="fw-bold text-brand-dark mb-0">DOCUMENTOS OFICIALES</h6>
                 <?php if ($user): ?>
                     <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalDocumento">
-                        <i class="bi bi-paperclip me-1"></i> Adjuntar Documento
+                        <i class="bi bi-paperclip me-1"></i> Adjuntar
                     </button>
                 <?php endif; ?>
             </div>
@@ -155,24 +275,27 @@
                     <thead class="table-light">
                         <tr>
                             <th>Descripción del Documento</th>
-                            <th class="text-center" style="width: 150px;">Acciones</th>
+                            <th class="text-center" style="width: 160px;">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!empty($documents)): ?>
-                            <?php foreach ($documents as$doc): ?>
+                            <?php foreach ($documents as $doc): ?>
                                 <tr>
                                     <td><?= htmlspecialchars($doc['description']) ?></td>
                                     <td class="text-center">
-                                        <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" target="_blank" class="btn btn-sm btn-outline-secondary me-1" title="Ver archivo">
-                                            <i class="bi bi-eye"></i>
+                                        <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" target="_blank" class="btn btn-sm btn-link text-primary p-1" title="Ver: Abre en segunda pestaña" data-bs-toggle="tooltip">
+                                            <i class="bi bi-eye fs-5"></i>
                                         </a>
-                                        <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" download class="btn btn-sm btn-outline-primary me-1" title="Descargar">
-                                            <i class="bi bi-download"></i>
+                                        <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" download class="btn btn-sm btn-link text-success p-1" title="Descargar: Descarga directa" data-bs-toggle="tooltip">
+                                            <i class="bi bi-download fs-5"></i>
                                         </a>
-                                        <a href="<?= BASE_URL ?>/users/delete-document/<?= $doc['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Eliminar documento?')" title="Eliminar">
-                                            <i class="bi bi-trash"></i>
-                                        </a>
+                                        <form method="POST" action="<?= BASE_URL ?>/users/delete-document/<?= $doc['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar documento?')">
+                                            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar" data-bs-toggle="tooltip">
+                                                <i class="bi bi-trash fs-5"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -206,23 +329,23 @@
                         <tbody>
                             <tr>
                                 <td>
-                                    <select id="trayect_movement" class="form-select">
+                                    <select id="trayect_movement" class="form-select form-select-sm">
                                         <option value="Ingreso">Ingreso</option>
                                         <option value="Baja">Baja</option>
                                         <option value="Re-ingreso">Re-ingreso</option>
                                     </select>
                                 </td>
                                 <td>
-                                    <input type="date" id="trayect_date" class="form-control text-center">
+                                    <input type="date" id="trayect_date" class="form-control form-control-sm text-center">
                                 </td>
                                 <td>
-                                    <select id="trayect_rehireable" class="form-select text-center">
+                                    <select id="trayect_rehireable" class="form-select form-select-sm text-center">
                                         <option value="Si">Sí</option>
                                         <option value="No">No</option>
                                     </select>
                                 </td>
                                 <td>
-                                    <input type="text" id="trayect_notes" class="form-control" placeholder="Observaciones...">
+                                    <input type="text" id="trayect_notes" class="form-control form-control-sm" placeholder="Observaciones...">
                                 </td>
                                 <td class="text-center">
                                     <button type="button" id="btnAddTrayectoria" class="btn btn-primary btn-sm" title="Agregar trayectoria">
@@ -249,12 +372,15 @@
                     </thead>
                     <tbody>
                         <?php if (!empty($trajectories)): ?>
-                            <?php foreach ($trajectories as$tray): ?>
+                            <?php foreach ($trajectories as $tray): ?>
                                 <tr>
                                     <td class="text-center">
-                                        <a href="<?= BASE_URL ?>/users/delete-trajectory/<?= $tray['id'] ?>" class="text-danger" onclick="return confirm('¿Eliminar registro?')">
-                                            <i class="bi bi-x-circle-fill"></i>
-                                        </a>
+                                        <form method="POST" action="<?= BASE_URL ?>/users/delete-trajectory/<?= $tray['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar registro?')">
+                                            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-0 border-0">
+                                                <i class="bi bi-x-circle-fill fs-6"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                     <td class="fw-semibold"><?= htmlspecialchars($tray['movement']) ?></td>
                                     <td class="text-center"><?= date('d/m/Y', strtotime($tray['movement_date'])) ?></td>
@@ -323,23 +449,81 @@ function togglePassword() {
 
 function checkRole() {
     const role = document.getElementById('roleSelect').value;
-    const div = document.getElementById('counterpartDiv');
+    const tr = document.getElementById('counterpartTr');
     if (role === 'Administrative Reporter' || role === 'Operational Reporter') {
-        div.style.display = 'block';
+        tr.style.display = 'table-row';
     } else {
-        div.style.display = 'none';
+        tr.style.display = 'none';
     }
 }
 checkRole();
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Autocompletar Fecha de Nacimiento desde la CURP
+    // Inicializar Tooltips de Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // --- LÓGICA DRAG AND DROP FOTOGRAFÍA ---
+    const dropZone = document.getElementById('dropZone');
+    const avatarInput = document.getElementById('avatarInput');
+    const avatarPreview = document.getElementById('avatarPreview');
+
+    if (dropZone && avatarInput) {
+        dropZone.addEventListener('click', () => avatarInput.click());
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('dragover');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('dragover');
+            }, false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files && files.length > 0) {
+                avatarInput.files = files;
+                handleFiles(files[0]);
+            }
+        });
+
+        avatarInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                handleFiles(this.files[0]);
+            }
+        });
+
+        function handleFiles(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('Por favor selecciona un archivo de imagen válido (JPG o PNG).');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                avatarPreview.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    // --- AUTOCOMPLETAR FECHA DE NACIMIENTO DESDE LA CURP ---
     const curpInput = document.getElementById('curpInput');
     const birthDateInput = document.getElementById('birthDateInput');
 
     if (curpInput && birthDateInput) {
-        curpInput.addEventListener('input', function() {
-            const curp = this.value.trim().toUpperCase();
+        function updateBirthDateFromCURP() {
+            const curp = curpInput.value.trim().toUpperCase();
             if (curp.length >= 10) {
                 const yearDigits = curp.substring(4, 6);
                 const month = curp.substring(6, 8);
@@ -350,10 +534,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 birthDateInput.value = `${century}${yearDigits}-${month}-${day}`;
             }
-        });
+        }
+
+        curpInput.addEventListener('input', updateBirthDateFromCURP);
+        if (curpInput.value) {
+            updateBirthDateFromCURP();
+        }
     }
 
-    // Guardar Trayectoria vía AJAX
+    // --- GUARDAR TRAYECTORIA VÍA AJAX ---
     const btnAddTrayectoria = document.getElementById('btnAddTrayectoria');
     if (btnAddTrayectoria) {
         btnAddTrayectoria.addEventListener('click', function() {

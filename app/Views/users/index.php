@@ -12,11 +12,10 @@
     <div class="card-body">
         <form method="GET" action="<?= BASE_URL ?>/users" class="row g-2 align-items-center">
             <div class="col-md-3">
-                <?php $statusVal = $_GET['status'] ?? 'active'; ?>
                 <select name="status" class="form-select" onchange="this.form.submit()">
-                    <option value="active" <?= $statusVal === 'active' ? 'selected' : '' ?>>Activos</option>
-                    <option value="inactive" <?= $statusVal === 'inactive' ? 'selected' : '' ?>>Inactivos</option>
-                    <option value="all" <?= $statusVal === 'all' ? 'selected' : '' ?>>Todos los estatus</option>
+                    <option value="">-- Todos los estatus --</option>
+                    <option value="active" <?= (($_GET['status'] ?? '') === 'active') ? 'selected' : '' ?>>Activos</option>
+                    <option value="inactive" <?= (($_GET['status'] ?? '') === 'inactive') ? 'selected' : '' ?>>Inactivos</option>
                 </select>
             </div>
             <div class="col-md-5">
@@ -24,7 +23,7 @@
                     <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
                     <input type="text" name="q" class="form-control" placeholder="Buscar por nombre, correo, usuario..." value="<?= htmlspecialchars($_GET['q'] ?? '') ?>">
                     <button class="btn btn-primary" type="submit">Buscar</button>
-                    <?php if (!empty($_GET['q']) || (isset($_GET['status']) && $_GET['status'] !== 'active')): ?>
+                    <?php if (!empty($_GET['q']) || !empty($_GET['status'])): ?>
                         <a href="<?= BASE_URL ?>/users" class="btn btn-outline-secondary">Limpiar</a>
                     <?php endif; ?>
                 </div>
@@ -67,12 +66,9 @@
                                     <a href="<?= BASE_URL ?>/users/edit/<?= $u['id'] ?>" class="btn btn-sm btn-outline-primary me-1" title="Editar">
                                         <i class="bi bi-pencil"></i>
                                     </a>
-                                    <form method="POST" action="<?= BASE_URL ?>/users/delete/<?= $u['id'] ?>" class="d-inline" onsubmit="return confirm('¿Desea eliminar este usuario?')">
-                                        <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
-                                            <i class="bi bi-trash"></i>
-                                        </button>
-                                    </form>
+                                    <a href="<?= BASE_URL ?>/users/delete/<?= $u['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Desea eliminar este usuario?')" title="Eliminar">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
