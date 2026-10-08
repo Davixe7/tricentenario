@@ -67,4 +67,12 @@ $router->add('POST', '/trainings/store', 'TrainingController@store');
 $router->add('GET', '/trainings/show', 'TrainingController@show');
 $router->add('POST', '/trainings/delete', 'TrainingController@delete');
 
+// Módulo Plantillas
+$router->add('GET', '/templates/reporte-semanal', 'TemplateController@reporteSemanal');
+$router->add('GET', '/templates/bitacora-incidencias', 'TemplateController@bitacoraIncidencias');
+$router->add('GET', '/templates/calificaciones-360', 'TemplateController@calificaciones360');
+$router->add('GET', '/templates/proyecto-semestre', 'TemplateController@proyectoSemestre');
+$router->add('GET', '/templates/download/{type}', 'TemplateController@download');
+$router->add('POST', '/templates/upload', 'TemplateController@upload');
+
 $router->dispatch($_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);

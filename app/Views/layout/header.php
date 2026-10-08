@@ -59,6 +59,7 @@
                 </div>
             </div>
 
+            <!-- MÓDULO PLANTILLAS -->
             <div class="nav-item">
                 <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#plantillasDropdown" role="button" aria-expanded="false" aria-controls="plantillasDropdown">
                     <span class="d-flex align-items-center">
@@ -68,8 +69,17 @@
                     <i class="bi bi-chevron-down small"></i>
                 </a>
                 <div class="collapse ms-3" id="plantillasDropdown">
-                    <a class="nav-link py-2 fs-7 text-muted" href="#">
-                        <i class="bi bi-circle me-2"></i>Documentos
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/templates/reporte-semanal">
+                        <i class="bi bi-file-earmark-excel me-2"></i>1. Reporte Semanal
+                    </a>
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/templates/bitacora-incidencias">
+                        <i class="bi bi-file-earmark-excel me-2"></i>2. Bitácora de Incidencias
+                    </a>
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/templates/calificaciones-360">
+                        <i class="bi bi-file-earmark-excel me-2"></i>3. Calificaciones 360º
+                    </a>
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/templates/proyecto-semestre">
+                        <i class="bi bi-file-earmark-excel me-2"></i>4. Proyecto Semestre
                     </a>
                 </div>
             </div>
@@ -110,10 +120,9 @@
                             $userId = $userSession['id'] ?? null;
                             $photo = $userSession['avatar'] ?? '';
 
-                            // Consulta directa si el avatar no viene en sesión
                             if (empty($photo) && $userId && class_exists('Database')) {
                                 try {
-                                    $db = Database::getInstance()->getConnection();
+                                    $db = Database::getInstance();
                                     $stmt = $db->prepare("SELECT avatar, first_name, last_name_paternal FROM users WHERE id = ?");
                                     $stmt->execute([$userId]);
                                     $uData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -125,7 +134,6 @@
                                 } catch (\Throwable $e) {}
                             }
 
-                            // Nombre del usuario
                             $firstName = $userSession['first_name'] ?? '';
                             $lastName = $userSession['last_name_paternal'] ?? '';
                             $userName = trim("$firstName $lastName");
@@ -135,7 +143,6 @@
 
                             $defaultAvatar = 'https://ui-avatars.com/api/?name=' . urlencode($userName) . '&background=0D8ABC&color=fff';
 
-                            // Armado de URL del avatar
                             if (!empty($photo)) {
                                 $cleanPath = ltrim($photo, '/');
                                 if (str_starts_with($cleanPath, 'http://') || str_starts_with($cleanPath, 'https://')) {
