@@ -46,6 +46,7 @@ class Router {
             if ($resource === 'users') $controllerName = 'UserController';
             if ($resource === 'areas') $controllerName = 'AreaController';
             if ($resource === 'positions') $controllerName = 'PositionController';
+            if ($resource === 'trainings') $controllerName = 'TrainingController';
 
             $actionSegment = $segments[1] ?? 'index';
             // Convertir 'upload-document' -> 'uploadDocument'

@@ -2,17 +2,20 @@
 require_once __DIR__ . '/../Models/User.php';
 require_once __DIR__ . '/../Models/Area.php';
 require_once __DIR__ . '/../Models/Position.php';
+require_once __DIR__ . '/../Models/Training.php';
 
 class UserController {
     private $userModel;
     private $areaModel;
     private $positionModel;
+    private $trainingModel;
 
     public function __construct() {
         Auth::check();
         $this->userModel = new User();
         $this->areaModel = new Area();
         $this->positionModel = new Position();
+        $this->trainingModel = new Training();
     }
 
     public function index() {
@@ -29,6 +32,8 @@ class UserController {
         $activeUsers = $this->userModel->getAll('active');
         $documents = [];
         $trajectories = [];
+        $userTrainings = [];
+        $allTrainings = $this->trainingModel->getAllWithUserCount();
         require_once __DIR__ . '/../Views/users/form.php';
     }
 
@@ -85,6 +90,10 @@ class UserController {
 
         $documents = $this->userModel->getDocumentsByUserId($id);
         $trajectories = $this->userModel->getTrajectoriesByUserId($id);
+        
+        // Cargar capacitaciones del usuario y catálogo completo
+        $userTrainings = $this->trainingModel->getByUser($id);
+        $allTrainings = $this->trainingModel->getAllWithUserCount();
 
         require_once __DIR__ . '/../Views/users/form.php';
     }
@@ -141,7 +150,7 @@ class UserController {
         exit;
     }
 
-    // --- ACCIONES DOCUMENTOS ---
+    // --- ACCIONES DOCUMENTOS OFICIALES ---
 
     public function uploadDocument() {
         if (!CSRF::validateToken($_POST['csrf_token'] ?? '')) {
@@ -231,5 +240,136 @@ class UserController {
         }
         header('Location: ' . BASE_URL . '/users');
         exit;
+    }
+
+    // --- ACCIONES CAPACITACIONES DESDE EL PERFIL ---
+
+    public function addTraining() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!CSRF::validateToken($_POST['csrf_token'] ?? '')) {
+                die('Invalid CSRF Token');
+            }
+
+            $userId = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
+            $trainingId = !empty($_POST['training_id']) ? (int)$_POST['training_id'] : null;
+
+            if ($userId && $trainingId) {
+                $this->trainingModel->assignToUser($userId, $trainingId);
+            }
+
+            if ($userId) {
+                header('Location: ' . BASE_URL . '/users/edit/' . $userId);
+            } else {
+                header('Location: ' . BASE_URL . '/users');
+            }
+            exit;
+        }
+    }
+
+    public function createAndAssignTraining() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!CSRF::validateToken($_POST['csrf_token'] ?? '')) {
+                die('Invalid CSRF Token');
+            }
+
+            $userId = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
+            $title = trim($_POST['title'] ?? '');
+            $type = $_POST['type'] ?? 'Curso';
+            $trainingDate = $_POST['training_date'] ?? date('Y-m-d');
+            $durationHours = trim($_POST['duration_hours'] ?? '');
+
+            if ($userId && !empty($title) && !empty($trainingDate)) {
+                $data = [
+                    'title' => $title,
+                    'type' => $type,
+                    'training_date' => $trainingDate,
+                    'duration_hours' => $durationHours !== '' ? $durationHours : null
+                ];
+
+                $trainingId = $this->trainingModel->createWithUsers($data, [$userId]);
+
+                // Procesar constancia/comprobante opcional
+                if ($trainingId && isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                    $userTrainings = $this->trainingModel->getByUser($userId);
+                    if (!empty($userTrainings)) {
+                        $lastUt = $userTrainings[0];
+                        $userTrainingId = $lastUt['user_training_id'];
+
+                        $uploadDir = UPLOAD_DIR . 'trainings/';
+                        if (!is_dir($uploadDir)) {
+                            mkdir($uploadDir, 0755, true);
+                        }
+
+                        $ext = pathinfo($_FILES['attachment']['name'], PATHINFO_EXTENSION);
+                        $filename = 'cert_' . $userTrainingId . '_' . time() . '.' . strtolower($ext);
+
+                        if (move_uploaded_file($_FILES['attachment']['tmp_name'], $uploadDir . $filename)) {
+                            $this->trainingModel->updateAttachment($userTrainingId, $filename);
+                        }
+                    }
+                }
+            }
+
+            if ($userId) {
+                header('Location: ' . BASE_URL . '/users/edit/' . $userId);
+            } else {
+                header('Location: ' . BASE_URL . '/users');
+            }
+            exit;
+        }
+    }
+
+    public function uploadTrainingAttachment() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!CSRF::validateToken($_POST['csrf_token'] ?? '')) {
+                die('Invalid CSRF Token');
+            }
+
+            $userTrainingId = !empty($_POST['user_training_id']) ? (int)$_POST['user_training_id'] : null;
+            $userId = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
+
+            if ($userTrainingId && isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = UPLOAD_DIR . 'trainings/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+
+                $ext = pathinfo($_FILES['attachment']['name'], PATHINFO_EXTENSION);
+                $filename = 'cert_' . $userTrainingId . '_' . time() . '.' . strtolower($ext);
+
+                if (move_uploaded_file($_FILES['attachment']['tmp_name'], $uploadDir . $filename)) {
+                    $this->trainingModel->updateAttachment($userTrainingId, $filename);
+                }
+            }
+
+            if ($userId) {
+                header('Location: ' . BASE_URL . '/users/edit/' . $userId);
+            } else {
+                header('Location: ' . BASE_URL . '/users');
+            }
+            exit;
+        }
+    }
+
+    public function deleteUserTraining() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!CSRF::validateToken($_POST['csrf_token'] ?? '')) {
+                die('Invalid CSRF Token');
+            }
+
+            $userTrainingId = !empty($_POST['user_training_id']) ? (int)$_POST['user_training_id'] : null;
+            $userId = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
+
+            if ($userTrainingId) {
+                $this->trainingModel->removeUserTraining($userTrainingId);
+            }
+
+            if ($userId) {
+                header('Location: ' . BASE_URL . '/users/edit/' . $userId);
+            } else {
+                header('Location: ' . BASE_URL . '/users');
+            }
+            exit;
+        }
     }
 }

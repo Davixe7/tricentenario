@@ -41,7 +41,6 @@
                 <thead class="table-light">
                     <tr>
                         <th>Nombre del Puesto</th>
-                        <th>Área</th>
                         <th>Estatus</th>
                         <th class="text-center">Acciones</th>
                     </tr>
@@ -51,7 +50,6 @@
                         <?php foreach ($positions as $pos): ?>
                             <tr>
                                 <td class="fw-semibold"><?= htmlspecialchars($pos['name']) ?></td>
-                                <td><?= htmlspecialchars($pos['area_name'] ?? '-') ?></td>
                                 <td>
                                     <span class="badge <?= ($pos['status'] ?? 'active') === 'active' ? 'bg-success' : 'bg-danger' ?>">
                                         <?= ($pos['status'] ?? 'active') === 'active' ? 'Activo' : 'Inactivo' ?>

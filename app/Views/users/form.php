@@ -284,10 +284,10 @@
                                 <tr>
                                     <td><?= htmlspecialchars($doc['description']) ?></td>
                                     <td class="text-center">
-                                        <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" target="_blank" class="btn btn-sm btn-link text-primary p-1" title="Ver: Abre en segunda pestaña" data-bs-toggle="tooltip">
+                                        <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" target="_blank" class="btn btn-sm btn-link text-primary p-1" title="Ver" data-bs-toggle="tooltip">
                                             <i class="bi bi-eye fs-5"></i>
                                         </a>
-                                        <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" download class="btn btn-sm btn-link text-success p-1" title="Descargar: Descarga directa" data-bs-toggle="tooltip">
+                                        <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" download class="btn btn-sm btn-link text-success p-1" title="Descargar" data-bs-toggle="tooltip">
                                             <i class="bi bi-download fs-5"></i>
                                         </a>
                                         <form method="POST" action="<?= BASE_URL ?>/users/delete-document/<?= $doc['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar documento?')">
@@ -303,6 +303,73 @@
                             <tr>
                                 <td colspan="2" class="text-center text-muted py-3">
                                     <?= $user ? 'No hay documentos adjuntos.' : 'Guarde el usuario para habilitar la subida de documentos.' ?>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- HISTORIAL DE CAPACITACIONES -->
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                <h6 class="fw-bold text-brand-dark mb-0">HISTORIAL DE CAPACITACIONES</h6>
+                <?php if ($user): ?>
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAsignarCapacitacion">
+                        <i class="bi bi-plus-lg me-1"></i> Asignar Capacitación
+                    </button>
+                <?php endif; ?>
+            </div>
+
+            <div class="table-responsive mb-4">
+                <table class="table table-bordered table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Capacitación</th>
+                            <th class="text-center" style="width: 150px;">Tipo</th>
+                            <th class="text-center" style="width: 130px;">Fecha</th>
+                            <th class="text-center" style="width: 130px;">Duración (hrs)</th>
+                            <th class="text-center" style="width: 200px;">Adjuntos / Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($userTrainings)): ?>
+                            <?php foreach ($userTrainings as $ut): ?>
+                                <tr>
+                                    <td class="fw-semibold text-dark"><?= htmlspecialchars($ut['title']) ?></td>
+                                    <td class="text-center">
+                                        <span class="badge bg-secondary"><?= htmlspecialchars($ut['type']) ?></span>
+                                    </td>
+                                    <td class="text-center"><?= date('d/m/Y', strtotime($ut['training_date'])) ?></td>
+                                    <td class="text-center"><?= htmlspecialchars($ut['duration_hours'] ?: 'N/A') ?></td>
+                                    <td class="text-center">
+                                        <?php if (!empty($ut['attachment_path'])): ?>
+                                            <a href="<?= BASE_URL ?>/uploads/trainings/<?= htmlspecialchars($ut['attachment_path']) ?>" target="_blank" class="btn btn-sm btn-link text-primary p-1" title="Ver Comprobante" data-bs-toggle="tooltip">
+                                                <i class="bi bi-eye fs-5"></i>
+                                            </a>
+                                            <a href="<?= BASE_URL ?>/uploads/trainings/<?= htmlspecialchars($ut['attachment_path']) ?>" download class="btn btn-sm btn-link text-success p-1" title="Descargar" data-bs-toggle="tooltip">
+                                                <i class="bi bi-download fs-5"></i>
+                                            </a>
+                                        <?php endif; ?>
+                                        
+                                        <button type="button" class="btn btn-sm btn-link text-info p-1" title="Adjuntar Documento" onclick="openUploadModal(<?= $ut['user_training_id'] ?>)" data-bs-toggle="tooltip">
+                                            <i class="bi bi-paperclip fs-5"></i>
+                                        </button>
+
+                                        <form method="POST" action="<?= BASE_URL ?>/users/delete-training" class="d-inline" onsubmit="return confirm('¿Quitar esta capacitación del colaborador?')">
+                                            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+                                            <input type="hidden" name="user_training_id" value="<?= $ut['user_training_id'] ?>">
+                                            <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar" data-bs-toggle="tooltip">
+                                                <i class="bi bi-trash fs-5"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">
+                                    <?= $user ? 'No hay capacitaciones asignadas.' : 'Guarde el usuario para registrar capacitaciones.' ?>
                                 </td>
                             </tr>
                         <?php endif; ?>
@@ -372,7 +439,7 @@
                     </thead>
                     <tbody>
                         <?php if (!empty($trajectories)): ?>
-                            <?php foreach ($trajectories as $tray): ?>
+                            <?php foreach ($trajectories as$tray): ?>
                                 <tr>
                                     <td class="text-center">
                                         <form method="POST" action="<?= BASE_URL ?>/users/delete-trajectory/<?= $tray['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar registro?')">
@@ -412,7 +479,7 @@
 </div>
 
 <?php if ($user): ?>
-<!-- MODAL ADJUNTAR DOCUMENTO -->
+<!-- MODAL ADJUNTAR DOCUMENTO OFICIAL -->
 <div class="modal fade" id="modalDocumento" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <form action="<?= BASE_URL ?>/users/upload-document" method="POST" enctype="multipart/form-data" class="modal-content">
@@ -439,9 +506,136 @@
         </form>
     </div>
 </div>
+
+<!-- MODAL ASIGNAR O CREAR CAPACITACIÓN -->
+<div class="modal fade" id="modalAsignarCapacitacion" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-brand-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-easel me-2"></i>Asignar Capacitación</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- Pestañas del Modal -->
+                <ul class="nav nav-pills mb-3" id="trainingTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="select-tab" data-bs-toggle="pill" data-bs-target="#tab-select" type="button" role="tab">Seleccionar Existente</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="create-tab" data-bs-toggle="pill" data-bs-target="#tab-create" type="button" role="tab">Crear Nueva Capacitación</button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="trainingTabsContent">
+                    <!-- Tab 1: Seleccionar Existente -->
+                    <div class="tab-pane fade show active" id="tab-select" role="tabpanel">
+                        <form action="<?= BASE_URL ?>/users/add-training" method="POST">
+                            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+                            <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Seleccionar Capacitación del Catálogo</label>
+                                <select name="training_id" class="form-select" required>
+                                    <option value="">-- Seleccionar Capacitación --</option>
+                                    <?php if (!empty($allTrainings)): ?>
+                                        <?php foreach ($allTrainings as$tr): ?>
+                                            <option value="<?= $tr['id'] ?>">
+                                                <?= htmlspecialchars($tr['title']) ?> (<?= date('d/m/Y', strtotime($tr['training_date'])) ?>)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </select>
+                            </div>
+
+                            <div class="text-end mt-4">
+                                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Asignar Seleccionada</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Tab 2: Crear Nueva Capacitación y Asignar -->
+                    <div class="tab-pane fade" id="tab-create" role="tabpanel">
+                        <form action="<?= BASE_URL ?>/users/create-and-assign-training" method="POST" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+                            <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Nombre de la Capacitación / Curso <span class="text-danger">*</span></label>
+                                <input type="text" name="title" class="form-control" required placeholder="Ej. Curso Primeros Auxilios">
+                            </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Tipo <span class="text-danger">*</span></label>
+                                    <select name="type" class="form-select" required>
+                                        <option value="Certificación">Certificación</option>
+                                        <option value="Curso" selected>Curso</option>
+                                        <option value="Diplomado">Diplomado</option>
+                                        <option value="Taller">Taller</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Fecha <span class="text-danger">*</span></label>
+                                    <input type="date" name="training_date" class="form-control" value="<?= date('Y-m-d') ?>" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label fw-semibold">Duración</label>
+                                    <input type="text" name="duration_hours" class="form-control" placeholder="Ej. 8 hrs">
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Comprobante / Documento Adjunto (Opcional)</label>
+                                <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
+                            </div>
+
+                            <div class="text-end mt-4">
+                                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                                <button type="submit" class="btn btn-success"><i class="bi bi-plus-circle me-1"></i> Crear y Asignar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL ADJUNTAR COMPROBANTE DE CAPACITACIÓN -->
+<div class="modal fade" id="modalUploadTrainingDoc" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form action="<?= BASE_URL ?>/users/upload-training-attachment" method="POST" enctype="multipart/form-data" class="modal-content">
+            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+            <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+            <input type="hidden" name="user_training_id" id="modal_user_training_id" value="">
+            <div class="modal-header bg-brand-dark text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-paperclip me-2"></i>Adjuntar Comprobante de Capacitación</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Archivo / Constancia (PDF, JPG, PNG)</label>
+                    <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png" required>
+                </div>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn btn-success"><i class="bi bi-cloud-upload me-1"></i> Subir Archivo</button>
+            </div>
+        </form>
+    </div>
+</div>
 <?php endif; ?>
 
 <script>
+function openUploadModal(userTrainingId) {
+    document.getElementById('modal_user_training_id').value = userTrainingId;
+    var modal = new bootstrap.Modal(document.getElementById('modalUploadTrainingDoc'));
+    modal.show();
+}
+
 function togglePassword() {
     const pwd = document.getElementById('pwdInput');
     pwd.type = pwd.type === 'password' ? 'text' : 'password';

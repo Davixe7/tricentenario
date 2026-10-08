@@ -1,4 +1,9 @@
 <?php
+
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 if (php_sapi_name() === 'cli-server') {
     $filePath = __DIR__ . parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
     if (is_file($filePath)) {
@@ -48,5 +53,18 @@ $router->add('POST', '/users/store', 'UserController@store');
 $router->add('GET', '/users/edit/{id}', 'UserController@edit');
 $router->add('POST', '/users/update/{id}', 'UserController@update');
 $router->add('POST', '/users/delete/{id}', 'UserController@delete');
+
+// Acciones de Capacitaciones en Perfil de Usuario
+$router->add('POST', '/users/add-training', 'UserController@addTraining');
+$router->add('POST', '/users/create-and-assign-training', 'UserController@createAndAssignTraining');
+$router->add('POST', '/users/upload-training-attachment', 'UserController@uploadTrainingAttachment');
+$router->add('POST', '/users/delete-training', 'UserController@deleteUserTraining');
+
+// Módulo Capacitaciones (Carga Masiva)
+$router->add('GET', '/trainings', 'TrainingController@index');
+$router->add('GET', '/trainings/create', 'TrainingController@create');
+$router->add('POST', '/trainings/store', 'TrainingController@store');
+$router->add('GET', '/trainings/show', 'TrainingController@show');
+$router->add('POST', '/trainings/delete', 'TrainingController@delete');
 
 $router->dispatch($_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);

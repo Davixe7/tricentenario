@@ -40,6 +40,7 @@
                 </div>
             <?php endif; ?>
 
+            <!-- MÓDULO CAPACITACIÓN -->
             <div class="nav-item">
                 <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#capacitacionDropdown" role="button" aria-expanded="false" aria-controls="capacitacionDropdown">
                     <span class="d-flex align-items-center">
@@ -49,8 +50,11 @@
                     <i class="bi bi-chevron-down small"></i>
                 </a>
                 <div class="collapse ms-3" id="capacitacionDropdown">
-                    <a class="nav-link py-2 fs-7 text-muted" href="#">
-                        <i class="bi bi-circle me-2"></i>Módulos
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/trainings">
+                        <i class="bi bi-list-task me-2"></i>Carga Masiva
+                    </a>
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/trainings/create">
+                        <i class="bi bi-plus-circle me-2"></i>Nueva Carga
                     </a>
                 </div>
             </div>
@@ -101,7 +105,7 @@
 
                 <div class="dropdown">
                     <a href="#" class="d-flex align-items-center text-white text-decoration-none dropdown-toggle" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-<?php 
+                        <?php 
                             $userSession = Auth::user() ?? $_SESSION['user'] ?? [];
                             $userId = $userSession['id'] ?? null;
                             $photo = $userSession['avatar'] ?? '';
@@ -112,7 +116,6 @@
                                     $db = Database::getInstance()->getConnection();
                                     $stmt = $db->prepare("SELECT avatar, first_name, last_name_paternal FROM users WHERE id = ?");
                                     $stmt->execute([$userId]);
-                                    // Forzar FETCH_ASSOC para evitar fallos si PDO está en FETCH_OBJ
                                     $uData = $stmt->fetch(PDO::FETCH_ASSOC);
                                     
                                     if ($uData && !empty($uData['avatar'])) {
