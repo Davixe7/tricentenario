@@ -15,6 +15,38 @@ class User {
         return $stmt->fetch();
     }
 
+    public function findByEmailOrUsername($identifier) {
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE (email = :email OR username = :username) AND status = 'active' LIMIT 1");
+        $stmt->execute([
+            ':email'    => $identifier,
+            ':username' => $identifier
+        ]);
+        return $stmt->fetch();
+    }
+
+    public function saveResetToken($userId, $token, $expires) {
+        $stmt = $this->db->prepare("UPDATE users SET reset_token = :token, reset_expires = :expires WHERE id = :id");
+        return $stmt->execute([
+            ':token'   => $token,
+            ':expires' => $expires,
+            ':id'      => $userId
+        ]);
+    }
+
+    public function findByResetToken($token) {
+        $stmt = $this->db->prepare("SELECT * FROM users WHERE reset_token = :token AND reset_expires > NOW() LIMIT 1");
+        $stmt->execute([':token' => $token]);
+        return $stmt->fetch();
+    }
+
+    public function updatePasswordAndClearToken($userId, $hashedPassword) {
+        $stmt = $this->db->prepare("UPDATE users SET password = :password, reset_token = NULL, reset_expires = NULL WHERE id = :id");
+        return $stmt->execute([
+            ':password' => $hashedPassword,
+            ':id'       => $userId
+        ]);
+    }
+
     public function getAll($statusFilter = null, $search = null) {
         $sql = "SELECT u.*, a.name AS area_name, p.name AS position_name 
                 FROM users u
@@ -75,7 +107,7 @@ class User {
     }
 
     public function update($id, $data) {
-        unset($data['id']); // Evita duplicar el parámetro :id en el SET y WHERE
+        unset($data['id']);
         $fields = [];
         foreach ($data as $key => $val) {
             $fields[] = "$key = :$key";

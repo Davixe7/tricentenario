@@ -67,4 +67,15 @@ $router->add('POST', '/trainings/store', 'TrainingController@store');
 $router->add('GET', '/trainings/show', 'TrainingController@show');
 $router->add('POST', '/trainings/delete', 'TrainingController@delete');
 
+// Auth & Password Recovery routes
+$router->add('GET', '/login', 'AuthController@showLogin');
+$router->add('POST', '/login', 'AuthController@login');
+$router->add('GET', '/logout', 'AuthController@logout');
+$router->add('POST', '/change-password', 'AuthController@changePassword');
+
+$router->add('GET', '/forgot-password', 'AuthController@showForgotPassword');
+$router->add('POST', '/forgot-password', 'AuthController@forgotPassword');
+$router->add('GET', '/reset-password', 'AuthController@showResetPassword');
+$router->add('POST', '/reset-password', 'AuthController@resetPassword');
+
 $router->dispatch($_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);

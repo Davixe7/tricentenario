@@ -6,21 +6,35 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
+    <style>
+        body.login-body {
+            background: url('<?= BASE_URL ?>/assets/img/login-bg.jpg') no-repeat center center fixed;
+            background-size: cover;
+        }
+        .login-card {
+            background-color: rgba(255, 255, 255, 0.96);
+            border-radius: 12px;
+        }
+    </style>
 </head>
-<body class="bg-light d-flex align-items-center justify-content-center min-vh-100">
+<body class="login-body d-flex align-items-center justify-content-center min-vh-100">
 
-<div class="card login-card p-4" style="max-width: 750px; width: 100%;">
+<div class="card login-card p-4 shadow-lg border-0" style="max-width: 750px; width: 100%;">
     <div class="row align-items-center">
         <div class="col-md-7 border-end pe-4">
             <h4 class="fw-bold text-center text-brand-dark mb-1">Modelo de Desarrollo Humano Integral</h4>
             <p class="text-center text-muted mb-4 fs-6">Sistema de Gestión</p>
             
             <p class="fw-semibold">Hola, Bienvenido.</p>
+                <!-- Alerta de Error -->
+                <?php if (!empty($error)): ?>
+                    <div class="alert alert-danger p-2 fs-6 mb-3"><?= htmlspecialchars($error) ?></div>
+                <?php endif; ?>
 
-            <?php if (!empty($error)): ?>
-                <div class="alert alert-danger p-2 fs-6"><?= htmlspecialchars($error) ?></div>
-            <?php endif; ?>
-
+                <!-- Alerta de Éxito (Recuperación de contraseña, etc.) -->
+                <?php if (!empty($_SESSION['flash_success'])): ?>
+                    <div class="alert alert-success p-2 fs-6 mb-3"><?= $_SESSION['flash_success']; unset($_SESSION['flash_success']); ?></div>
+                <?php endif; ?>
             <form action="<?= BASE_URL ?>/login" method="POST">
                 <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
                 
@@ -37,7 +51,7 @@
                 <button type="submit" class="btn btn-brand-primary w-100 fw-semibold py-2" style="background-color: var(--brand-dark);">Entrar</button>
 
                 <div class="text-center mt-3">
-                    <a href="#" class="text-decoration-none text-muted small">¿Olvidaste tu contraseña?</a>
+                    <a href="<?= BASE_URL ?>/forgot-password" class="text-decoration-none text-muted small">¿Olvidaste tu contraseña?</a>
                 </div>
             </form>
         </div>
