@@ -17,7 +17,7 @@
         </div>
 
         <nav class="nav flex-column mt-3">
-            <?php if ((Auth::user()['role'] ?? '') === 'General Admin'): ?>
+            <?php if (in_array(Auth::user()['role'] ?? '', ['General Admin', 'admin', 'Administrador General'])): ?>
                 <div class="nav-item">
                     <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#configDropdown" role="button" aria-expanded="false" aria-controls="configDropdown">
                         <span class="d-flex align-items-center">
