@@ -408,11 +408,14 @@ $csrfToken = CSRF::generateToken();
                                 <td>
                                     <input type="date" id="trayect_date" class="form-control form-control-sm text-center">
                                 </td>
-                                <td>
-                                    <select id="trayect_rehireable" class="form-select form-select-sm text-center">
-                                        <option value="Si">Sí</option>
-                                        <option value="No">No</option>
-                                    </select>
+                                <td class="text-center">
+                                    <?php 
+                                        $rehireVal = trim($tray['rehireable'] ?? '');
+                                        $isYes = (strcasecmp($rehireVal, 'Si') === 0 || strcasecmp($rehireVal, 'Sí') === 0 || strcasecmp($rehireVal, 'SI') === 0 || $rehireVal === '1');
+                                    ?>
+                                    <span class="badge <?= $isYes ? 'bg-success' : 'bg-danger' ?>">
+                                        <?= htmlspecialchars($tray['rehireable']) ?>
+                                    </span>
                                 </td>
                                 <td>
                                     <input type="text" id="trayect_notes" class="form-control form-control-sm" placeholder="Observaciones...">
