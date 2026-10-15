@@ -67,6 +67,10 @@ $router->add('POST', '/trainings/store', 'TrainingController@store');
 $router->add('GET', '/trainings/show', 'TrainingController@show');
 $router->add('POST', '/trainings/delete', 'TrainingController@delete');
 
+// Acciones de Trayectoria en Perfil de Usuario
+$router->add('POST', '/users/add-trajectory', 'UserController@addTrajectory');
+$router->add('POST', '/users/delete-trajectory/{id}', 'UserController@deleteTrajectory');
+
 // Auth & Password Recovery routes
 $router->add('GET', '/login', 'AuthController@showLogin');
 $router->add('POST', '/login', 'AuthController@login');
