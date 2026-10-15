@@ -68,7 +68,7 @@
             </a>
         </div>
 
-        <!-- SECCIÓN CARGAR INFORMACIÓN -->
+        <!-- SECCIÓN CARGAR INFORMACIÓN (EL FORMULARIO ENVUELVE TODO CORRECTAMENTE) -->
         <form action="<?= BASE_URL ?>/templates/upload" method="POST" enctype="multipart/form-data" id="uploadTemplateForm">
             <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
             <input type="hidden" name="template_slug" value="<?= $slug ?>">
@@ -105,7 +105,7 @@
                 </div>
             </div>
 
-            <!-- Botón Guardar -->
+            <!-- Botón Guardar (AHORA DENTRO DEL FORMULARIO) -->
             <div class="text-center mt-5">
                 <button type="submit" class="btn btn-success px-5 py-2 fw-bold fs-5 shadow-sm" style="background-color: #28a745; border: none;">
                     Guardar

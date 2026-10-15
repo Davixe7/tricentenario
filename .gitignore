@@ -1,2 +1,16 @@
+# Base de datos
 config/database.php
+
+# Configuración del servidor y entorno
+.htaccess
+public/.htaccess
+config/config.php
+
+# Directorio de subidas y archivos temporales
 public/uploads/*
+uploads/*
+
+# Archivos del sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/

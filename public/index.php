@@ -54,25 +54,30 @@ $router->add('GET', '/users/edit/{id}', 'UserController@edit');
 $router->add('POST', '/users/update/{id}', 'UserController@update');
 $router->add('POST', '/users/delete/{id}', 'UserController@delete');
 
-// Acciones de Capacitaciones en Perfil de Usuario
+// Acciones de Capacitaciones / Trainings en Perfil de Usuario
 $router->add('POST', '/users/add-training', 'UserController@addTraining');
 $router->add('POST', '/users/create-and-assign-training', 'UserController@createAndAssignTraining');
 $router->add('POST', '/users/upload-training-attachment', 'UserController@uploadTrainingAttachment');
 $router->add('POST', '/users/delete-training', 'UserController@deleteUserTraining');
 
-// Módulo Capacitaciones (Carga Masiva)
+// Módulo Capacitaciones / Trainings (Carga Masiva)
 $router->add('GET', '/trainings', 'TrainingController@index');
 $router->add('GET', '/trainings/create', 'TrainingController@create');
 $router->add('POST', '/trainings/store', 'TrainingController@store');
 $router->add('GET', '/trainings/show', 'TrainingController@show');
 $router->add('POST', '/trainings/delete', 'TrainingController@delete');
 
-// Módulo Plantillas
+// Módulo Template / Plantillas
 $router->add('GET', '/templates/reporte-semanal', 'TemplateController@reporteSemanal');
 $router->add('GET', '/templates/bitacora-incidencias', 'TemplateController@bitacoraIncidencias');
 $router->add('GET', '/templates/calificaciones-360', 'TemplateController@calificaciones360');
 $router->add('GET', '/templates/proyecto-semestre', 'TemplateController@proyectoSemestre');
 $router->add('GET', '/templates/download/{type}', 'TemplateController@download');
 $router->add('POST', '/templates/upload', 'TemplateController@upload');
+
+// Módulo Scorecard / Boleta
+$router->add('GET', '/scorecard/general', 'ScorecardController@general');
+$router->add('POST', '/scorecard/update-general', 'ScorecardController@updateGeneral');
+$router->add('GET', '/scorecard/individuals', 'ScorecardController@individuals');
 
 $router->dispatch($_SERVER['REQUEST_URI'], $_SERVER['REQUEST_METHOD']);
