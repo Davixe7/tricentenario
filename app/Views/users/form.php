@@ -408,14 +408,11 @@ $csrfToken = CSRF::generateToken();
                                 <td>
                                     <input type="date" id="trayect_date" class="form-control form-control-sm text-center">
                                 </td>
-                                <td class="text-center">
-                                    <?php 
-                                        $rehireVal = trim($tray['rehireable'] ?? '');
-                                        $isYes = (strcasecmp($rehireVal, 'Si') === 0 || strcasecmp($rehireVal, 'Sí') === 0 || strcasecmp($rehireVal, 'SI') === 0 || $rehireVal === '1');
-                                    ?>
-                                    <span class="badge <?= $isYes ? 'bg-success' : 'bg-danger' ?>">
-                                        <?= htmlspecialchars($tray['rehireable']) ?>
-                                    </span>
+                                <td>
+                                    <select id="trayect_rehireable" class="form-select form-select-sm text-center">
+                                        <option value="Si">Sí</option>
+                                        <option value="No">No</option>
+                                    </select>
                                 </td>
                                 <td>
                                     <input type="text" id="trayect_notes" class="form-control form-control-sm" placeholder="Observaciones...">
@@ -448,18 +445,21 @@ $csrfToken = CSRF::generateToken();
                             <?php foreach ($trajectories as$tray): ?>
                                 <tr>
                                     <td class="text-center">
-                                        <form method="POST" action="<?= BASE_URL ?>/users/delete-trajectory/<?= $tray['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar registro?')">
+                                        <form method="POST" action="<?= BASE_URL ?>/users/delete-trajectory/<?= $tray['id'] ?? '' ?>" class="d-inline" onsubmit="return confirm('¿Eliminar registro?')">
                                             <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                                             <button type="submit" class="btn btn-sm btn-link text-danger p-0 border-0">
                                                 <i class="bi bi-x-circle-fill fs-6"></i>
                                             </button>
                                         </form>
                                     </td>
-                                    <td class="fw-semibold"><?= htmlspecialchars($tray['movement']) ?></td>
-                                    <td class="text-center"><?= date('d/m/Y', strtotime($tray['movement_date'])) ?></td>
+                                    <td class="fw-semibold"><?= htmlspecialchars($tray['movement'] ?? '') ?></td>
+                                    <td class="text-center"><?= !empty($tray['movement_date']) ? date('d/m/Y', strtotime($tray['movement_date'])) : '' ?></td>
                                     <td class="text-center">
-                                        <span class="badge <?= $tray['rehireable'] === 'Si' ? 'bg-success' : 'bg-danger' ?>">
-                                            <?= $tray['rehireable'] ?>
+                                        <?php 
+                                            $rehireVal = trim($tray['rehireable'] ?? '');$isYes = (strcasecmp($rehireVal, 'Si') === 0 || strcasecmp($rehireVal, 'Sí') === 0 || strcasecmp($rehireVal, 'SI') === 0 ||$rehireVal === '1');
+                                        ?>
+                                        <span class="badge <?= $isYes ? 'bg-success' : 'bg-danger' ?>">
+                                            <?= htmlspecialchars($tray['rehireable'] ?? '') ?>
                                         </span>
                                     </td>
                                     <td><?= htmlspecialchars($tray['notes'] ?? '') ?></td>
