@@ -66,9 +66,12 @@
                                     <a href="<?= BASE_URL ?>/users/edit/<?= $u['id'] ?>" class="btn btn-sm btn-outline-primary me-1" title="Editar">
                                         <i class="bi bi-pencil"></i>
                                     </a>
-                                    <a href="<?= BASE_URL ?>/users/delete/<?= $u['id'] ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Desea eliminar este usuario?')" title="Eliminar">
-                                        <i class="bi bi-trash"></i>
-                                    </a>
+                                    <form method="POST" action="<?= BASE_URL ?>/users/delete/<?= $u['id'] ?>" class="d-inline" onsubmit="return confirm('¿Desea eliminar este usuario?')">
+                                        <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -81,6 +84,29 @@
             </table>
         </div>
     </div>
+
+    <!-- Paginación -->
+    <?php if (isset($totalPages) && $totalPages > 1): ?>
+        <div class="card-footer bg-white py-3">
+            <nav aria-label="Navegación de páginas">
+                <ul class="pagination justify-content-center mb-0">
+                    <li class="page-item <?= ($page <= 1) ? 'disabled' : '' ?>">
+                        <a class="page-link" href="<?= BASE_URL ?>/users?page=<?= $page - 1 ?>&status=<?= urlencode($statusFilter) ?>&q=<?= urlencode($searchFilter) ?>" tabindex="-1">Anterior</a>
+                    </li>
+
+                    <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                        <li class="page-item <?= ($page == $i) ? 'active' : '' ?>">
+                            <a class="page-link" href="<?= BASE_URL ?>/users?page=<?= $i ?>&status=<?= urlencode($statusFilter) ?>&q=<?= urlencode($searchFilter) ?>"><?= $i ?></a>
+                        </li>
+                    <?php endfor; ?>
+
+                    <li class="page-item <?= ($page >= $totalPages) ? 'disabled' : '' ?>">
+                        <a class="page-link" href="<?= BASE_URL ?>/users?page=<?= $page + 1 ?>&status=<?= urlencode($statusFilter) ?>&q=<?= urlencode($searchFilter) ?>">Siguiente</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    <?php endif; ?>
 </div>
 
 <?php require_once __DIR__ . '/../layout/footer.php'; ?>

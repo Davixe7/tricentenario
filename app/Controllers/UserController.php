@@ -21,7 +21,19 @@ class UserController {
     public function index() {
         $statusFilter = $_GET['status'] ?? 'active';
         $searchFilter = trim($_GET['q'] ?? ($_GET['search'] ?? ''));
-        $users = $this->userModel->getAll($statusFilter, $searchFilter);
+        
+        // Paginación
+        $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+        if ($page < 1) $page = 1;
+        $perPage = 10;
+        $offset = ($page - 1) * $perPage;
+
+        $totalUsers = $this->userModel->getTotalCount($statusFilter, $searchFilter);
+        $totalPages = ceil($totalUsers / $perPage);
+        if ($totalPages < 1) $totalPages = 1;
+
+        $users = $this->userModel->getAll($statusFilter, $searchFilter, $perPage, $offset);
+        
         require_once __DIR__ . '/../Views/users/index.php';
     }
 
@@ -29,7 +41,7 @@ class UserController {
         $user = null;
         $areas = $this->areaModel->getAll('active');
         $positions = $this->positionModel->getAll('active');
-        $activeUsers = $this->userModel->getAll('active');
+        $activeUsers = $this->userModel->getAll('active', null, 1000, 0); // Todos para los select
         $documents = [];
         $trajectories = [];
         $userTrainings = [];
@@ -86,12 +98,11 @@ class UserController {
 
         $areas = $this->areaModel->getAll('active');
         $positions = $this->positionModel->getAll('active');
-        $activeUsers = $this->userModel->getAll('active');
+        $activeUsers = $this->userModel->getAll('active', null, 1000, 0);
 
         $documents = $this->userModel->getDocumentsByUserId($id);
         $trajectories = $this->userModel->getTrajectoriesByUserId($id);
         
-        // Cargar capacitaciones del usuario y catálogo completo
         $userTrainings = $this->trainingModel->getByUser($id);
         $allTrainings = $this->trainingModel->getAllWithUserCount();
 
@@ -288,7 +299,6 @@ class UserController {
 
                 $trainingId = $this->trainingModel->createWithUsers($data, [$userId]);
 
-                // Procesar constancia/comprobante opcional
                 if ($trainingId && isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
                     $userTrainings = $this->trainingModel->getByUser($userId);
                     if (!empty($userTrainings)) {

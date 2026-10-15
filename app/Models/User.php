@@ -47,7 +47,7 @@ class User {
         ]);
     }
 
-    public function getAll($statusFilter = null, $search = null) {
+    public function getAll($statusFilter = null, $search = null, $limit = 10, $offset = 0) {
         $sql = "SELECT u.*, a.name AS area_name, p.name AS position_name 
                 FROM users u
                 LEFT JOIN areas a ON u.area_id = a.id
@@ -78,11 +78,46 @@ class User {
             }
         }
 
-        $sql .= " ORDER BY u.first_name ASC, u.last_name_paternal ASC";
+        $sql .= " ORDER BY u.first_name ASC, u.last_name_paternal ASC LIMIT " . (int)$limit . " OFFSET " . (int)$offset;
+
+        $stmt = $this->db->prepare($sql);
+        foreach ($params as $key => $val) {
+            $stmt->bindValue($key, $val);
+        }
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
+    public function getTotalCount($statusFilter = null, $search = null) {
+        $sql = "SELECT COUNT(*) as total FROM users u WHERE 1=1";
+        $params = [];
+
+        if (!empty($statusFilter) && $statusFilter !== 'all') {
+            $sql .= " AND u.status = :status";
+            $params[':status'] = $statusFilter;
+        }
+
+        if (!empty($search)) {
+            $sql .= " AND (
+                u.first_name LIKE :s1 
+                OR u.last_name_paternal LIKE :s2 
+                OR u.last_name_maternal LIKE :s3 
+                OR u.employee_number LIKE :s4 
+                OR u.username LIKE :s5 
+                OR u.email LIKE :s6 
+                OR u.curp LIKE :s7 
+                OR u.rfc LIKE :s8
+            )";
+            $searchTerm = '%' . $search . '%';
+            for ($i = 1; $i <= 8; $i++) {
+                $params[":s$i"] = $searchTerm;
+            }
+        }
 
         $stmt = $this->db->prepare($sql);
         $stmt->execute($params);
-        return $stmt->fetchAll();
+        $result = $stmt->fetch();
+        return $result ? (int)$result['total'] : 0;
     }
 
     public function find($id) {
