@@ -7,9 +7,22 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
+    <style>
+        /* Ajuste para evitar desbordamiento horizontal en layouts Flexbox */
+        .main-wrapper {
+            min-width: 0;
+            overflow-x: hidden;
+        }
+        .sidebar {
+            transition: margin-left 0.3s ease;
+        }
+        .sidebar.collapsed {
+            margin-left: -260px; /* Ajusta este valor al ancho real de tu sidebar */
+        }
+    </style>
 </head>
 <body>
-<div class="d-flex">
+<div class="d-flex w-100 overflow-hidden">
     <aside class="sidebar">
         <div class="p-3 text-center border-bottom d-flex align-items-center justify-content-center gap-2">
             <img src="<?= BASE_URL ?>/assets/img/phillips-66.png" alt="Phillips 66" style="max-height: 38px;">
@@ -59,6 +72,7 @@
                 </div>
             </div>
 
+            <!-- MÓDULO PLANTILLAS -->
             <div class="nav-item">
                 <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#plantillasDropdown" role="button" aria-expanded="false" aria-controls="plantillasDropdown">
                     <span class="d-flex align-items-center">
@@ -68,12 +82,22 @@
                     <i class="bi bi-chevron-down small"></i>
                 </a>
                 <div class="collapse ms-3" id="plantillasDropdown">
-                    <a class="nav-link py-2 fs-7 text-muted" href="#">
-                        <i class="bi bi-circle me-2"></i>Documentos
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/templates/reporte-semanal">
+                        <i class="bi bi-file-earmark-excel me-2"></i>1. Reporte Semanal
+                    </a>
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/templates/bitacora-incidencias">
+                        <i class="bi bi-file-earmark-excel me-2"></i>2. Bitácora de Incidencias
+                    </a>
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/templates/calificaciones-360">
+                        <i class="bi bi-file-earmark-excel me-2"></i>3. Calificaciones 360º
+                    </a>
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/templates/proyecto-semestre">
+                        <i class="bi bi-file-earmark-excel me-2"></i>4. Proyecto Semestre
                     </a>
                 </div>
             </div>
 
+            <!-- MÓDULO BOLETA -->
             <div class="nav-item">
                 <a class="nav-link d-flex align-items-center justify-content-between" data-bs-toggle="collapse" href="#boletaDropdown" role="button" aria-expanded="false" aria-controls="boletaDropdown">
                     <span class="d-flex align-items-center">
@@ -83,17 +107,25 @@
                     <i class="bi bi-chevron-down small"></i>
                 </a>
                 <div class="collapse ms-3" id="boletaDropdown">
-                    <a class="nav-link py-2 fs-7 text-muted" href="#">
-                        <i class="bi bi-circle me-2"></i>Consultar
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/scorecard/general">
+                        <i class="bi bi-circle me-2"></i>General
+                    </a>
+                    <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/scorecard/individuals">
+                        <i class="bi bi-circle me-2"></i>Individuales
                     </a>
                 </div>
             </div>
         </nav>
     </aside>
 
-    <div class="flex-grow-1">
+    <div class="flex-grow-1 main-wrapper d-flex flex-column" style="min-width: 0;">
         <header class="bg-brand-dark text-white px-4 py-3 d-flex justify-content-between align-items-center">
-            <span class="fw-bold fs-5">Modelo de Desarrollo Humano Integral</span>
+            <div class="d-flex align-items-center gap-3">
+                <button type="button" class="btn btn-link text-white p-0 text-decoration-none" onclick="document.querySelector('.sidebar').classList.toggle('collapsed');" title="Alternar Menú">
+                    <i class="bi bi-list fs-3"></i>
+                </button>
+                <span class="fw-bold fs-5">Modelo de Desarrollo Humano Integral</span>
+            </div>
             
             <div class="d-flex align-items-center gap-3">
                 <button type="button" class="btn btn-link text-white p-0 position-relative text-decoration-none me-2" title="Notificaciones">
@@ -110,10 +142,9 @@
                             $userId = $userSession['id'] ?? null;
                             $photo = $userSession['avatar'] ?? '';
 
-                            // Consulta directa si el avatar no viene en sesión
                             if (empty($photo) && $userId && class_exists('Database')) {
                                 try {
-                                    $db = Database::getInstance()->getConnection();
+                                    $db = Database::getInstance();
                                     $stmt = $db->prepare("SELECT avatar, first_name, last_name_paternal FROM users WHERE id = ?");
                                     $stmt->execute([$userId]);
                                     $uData = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -125,7 +156,6 @@
                                 } catch (\Throwable $e) {}
                             }
 
-                            // Nombre del usuario
                             $firstName = $userSession['first_name'] ?? '';
                             $lastName = $userSession['last_name_paternal'] ?? '';
                             $userName = trim("$firstName $lastName");
@@ -135,7 +165,6 @@
 
                             $defaultAvatar = 'https://ui-avatars.com/api/?name=' . urlencode($userName) . '&background=0D8ABC&color=fff';
 
-                            // Armado de URL del avatar
                             if (!empty($photo)) {
                                 $cleanPath = ltrim($photo, '/');
                                 if (str_starts_with($cleanPath, 'http://') || str_starts_with($cleanPath, 'https://')) {
@@ -205,4 +234,4 @@
             </div>
         </div>
 
-        <main class="p-4">
+        <main class="p-4 flex-grow-1" style="min-width: 0;">
