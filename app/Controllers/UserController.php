@@ -41,7 +41,11 @@ class UserController {
         $user = null;
         $areas = $this->areaModel->getAll('active');
         $positions = $this->positionModel->getAll('active');
-        $activeUsers = $this->userModel->getAll('active', null, 1000, 0); // Todos para los select
+        $activeUsers = $this->userModel->getAll('active', null, 1000, 0);
+        
+        // Al crear un usuario nuevo, todos los activos están disponibles como contraparte
+        $counterpartUsers = $activeUsers;
+
         $documents = [];
         $trajectories = [];
         $userTrainings = [];
@@ -99,6 +103,11 @@ class UserController {
         $areas = $this->areaModel->getAll('active');
         $positions = $this->positionModel->getAll('active');
         $activeUsers = $this->userModel->getAll('active', null, 1000, 0);
+
+        // Excluir al propio usuario que se está editando para que no pueda ser su propia contraparte
+        $counterpartUsers = array_filter($activeUsers, function($u) use ($id) {
+            return $u['id'] != $id;
+        });
 
         $documents = $this->userModel->getDocumentsByUserId($id);
         $trajectories = $this->userModel->getTrajectoriesByUserId($id);

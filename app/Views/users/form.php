@@ -165,11 +165,11 @@
                                 </td>
                             </tr>
                             <tr id="counterpartTr">
-                                <td class="label-col">Reportero Contraparte:</td>
+                                <td class="label-col">Reportero Contraparte: <span id="counterpartAsterisk" class="text-danger" style="display:none;">*</span></td>
                                 <td class="input-col">
-                                    <select name="counterpart_reporter_id" class="form-select form-select-sm">
+                                    <select name="counterpart_reporter_id" id="counterpartSelect" class="form-select form-select-sm">
                                         <option value="">-- Seleccionar --</option>
-                                        <?php foreach ($activeUsers as $u): ?>
+                                        <?php foreach ($counterpartUsers ?? $activeUsers as $u): ?>
                                             <option value="<?= $u['id'] ?>" <?= (($user['counterpart_reporter_id'] ?? '') == $u['id']) ? 'selected' : '' ?>><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name_paternal']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
@@ -333,7 +333,7 @@
                     </thead>
                     <tbody>
                         <?php if (!empty($userTrainings)): ?>
-                            <?php foreach ($userTrainings as $ut): ?>
+                            <?php foreach ($userTrainings as$ut): ?>
                                 <tr>
                                     <td class="fw-semibold text-dark"><?= htmlspecialchars($ut['title']) ?></td>
                                     <td class="text-center">
