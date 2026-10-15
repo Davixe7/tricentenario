@@ -1,4 +1,7 @@
-<?php require_once __DIR__ . '/../layout/header.php'; ?>
+<?php 
+require_once __DIR__ . '/../layout/header.php'; 
+$csrfToken = CSRF::generateToken();
+?>
 
 <style>
 /* Estilos para el diseño reticular de formulario */
@@ -65,7 +68,7 @@
     <div class="card-body p-4">
 
         <form action="<?= $user ? BASE_URL . '/users/update/' . $user['id'] : BASE_URL . '/users/store' ?>" method="POST" enctype="multipart/form-data">
-            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
             <input type="hidden" id="user_id" value="<?= $user['id'] ?? '' ?>">
 
             <!-- INFORMACIÓN LABORAL -->
@@ -291,7 +294,7 @@
                                             <i class="bi bi-download fs-5"></i>
                                         </a>
                                         <form method="POST" action="<?= BASE_URL ?>/users/delete-document/<?= $doc['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar documento?')">
-                                            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+                                            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                                             <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar" data-bs-toggle="tooltip">
                                                 <i class="bi bi-trash fs-5"></i>
                                             </button>
@@ -333,7 +336,7 @@
                     </thead>
                     <tbody>
                         <?php if (!empty($userTrainings)): ?>
-                            <?php foreach ($userTrainings as$ut): ?>
+                            <?php foreach ($userTrainings as $ut): ?>
                                 <tr>
                                     <td class="fw-semibold text-dark"><?= htmlspecialchars($ut['title']) ?></td>
                                     <td class="text-center">
@@ -356,7 +359,7 @@
                                         </button>
 
                                         <form method="POST" action="<?= BASE_URL ?>/users/delete-training" class="d-inline" onsubmit="return confirm('¿Quitar esta capacitación del colaborador?')">
-                                            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+                                            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                                             <input type="hidden" name="user_training_id" value="<?= $ut['user_training_id'] ?>">
                                             <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
                                             <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar" data-bs-toggle="tooltip">
@@ -443,7 +446,7 @@
                                 <tr>
                                     <td class="text-center">
                                         <form method="POST" action="<?= BASE_URL ?>/users/delete-trajectory/<?= $tray['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar registro?')">
-                                            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+                                            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                                             <button type="submit" class="btn btn-sm btn-link text-danger p-0 border-0">
                                                 <i class="bi bi-x-circle-fill fs-6"></i>
                                             </button>
@@ -483,7 +486,7 @@
 <div class="modal fade" id="modalDocumento" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <form action="<?= BASE_URL ?>/users/upload-document" method="POST" enctype="multipart/form-data" class="modal-content">
-            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
             <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
             <div class="modal-header">
                 <h5 class="modal-title fw-bold">Adjuntar Documento Oficial</h5>
@@ -530,7 +533,7 @@
                     <!-- Tab 1: Seleccionar Existente -->
                     <div class="tab-pane fade show active" id="tab-select" role="tabpanel">
                         <form action="<?= BASE_URL ?>/users/add-training" method="POST">
-                            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+                            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                             <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
 
                             <div class="mb-3">
@@ -557,7 +560,7 @@
                     <!-- Tab 2: Crear Nueva Capacitación y Asignar -->
                     <div class="tab-pane fade" id="tab-create" role="tabpanel">
                         <form action="<?= BASE_URL ?>/users/create-and-assign-training" method="POST" enctype="multipart/form-data">
-                            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+                            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                             <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
 
                             <div class="mb-3">
@@ -607,7 +610,7 @@
 <div class="modal fade" id="modalUploadTrainingDoc" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <form action="<?= BASE_URL ?>/users/upload-training-attachment" method="POST" enctype="multipart/form-data" class="modal-content">
-            <input type="hidden" name="csrf_token" value="<?= CSRF::generateToken() ?>">
+            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
             <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
             <input type="hidden" name="user_training_id" id="modal_user_training_id" value="">
             <div class="modal-header bg-brand-dark text-white">
@@ -752,7 +755,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const formData = new FormData();
-            formData.append('csrf_token', '<?= CSRF::generateToken() ?>');
+            formData.append('csrf_token', '<?= $csrfToken ?>');
             formData.append('user_id', userId);
             formData.append('movement', movement);
             formData.append('movement_date', date);
