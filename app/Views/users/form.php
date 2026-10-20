@@ -249,7 +249,7 @@ $csrfToken = CSRF::generateToken();
                             <tr>
                                 <td class="label-col">Fecha Nacimiento:</td>
                                 <td class="input-col">
-                                    <input type="date" name="birth_date" id="birthDateInput" class="form-control form-control-sm bg-light" value="<?= htmlspecialchars($user['birth_date'] ?? '') ?>" readonly title="Llenado automático desde la CURP">
+                                    <input type="date" name="birth_date" id="birthDateInput" class="form-control form-control-sm" value="<?= htmlspecialchars($user['birth_date'] ?? '') ?>">
                                 </td>
                             </tr>
                             <tr>
@@ -283,7 +283,7 @@ $csrfToken = CSRF::generateToken();
                     </thead>
                     <tbody>
                         <?php if (!empty($documents)): ?>
-                            <?php foreach ($documents as $doc): ?>
+                            <?php foreach ($documents as$doc): ?>
                                 <tr>
                                     <td><?= htmlspecialchars($doc['description']) ?></td>
                                     <td class="text-center">
@@ -336,7 +336,7 @@ $csrfToken = CSRF::generateToken();
                     </thead>
                     <tbody>
                         <?php if (!empty($userTrainings)): ?>
-                            <?php foreach ($userTrainings as $ut): ?>
+                            <?php foreach ($userTrainings as$ut): ?>
                                 <tr>
                                     <td class="fw-semibold text-dark"><?= htmlspecialchars($ut['title']) ?></td>
                                     <td class="text-center">
@@ -393,7 +393,7 @@ $csrfToken = CSRF::generateToken();
                                 <th style="width: 20%;">Fecha</th>
                                 <th style="width: 20%;">Recontratable</th>
                                 <th style="width: 30%;">Observaciones</th>
-                                <th style="width: 5%;"></th>
+                                <th style="width: 5%;">Acción</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -433,25 +433,17 @@ $csrfToken = CSRF::generateToken();
                 <table class="table table-bordered table-hover align-middle mb-0">
                     <thead class="table-light">
                         <tr>
-                            <th style="width: 5%;" class="text-center"></th>
                             <th style="width: 25%;">Movimiento</th>
                             <th style="width: 20%;" class="text-center">Fecha</th>
-                            <th style="width: 20%;" class="text-center">Recontratable</th>
+                            <th style="width: 15%;" class="text-center">Recontratable</th>
                             <th style="width: 30%;">Observaciones</th>
+                            <th style="width: 10%;" class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (!empty($trajectories)): ?>
                             <?php foreach ($trajectories as$tray): ?>
                                 <tr>
-                                    <td class="text-center">
-                                        <form method="POST" action="<?= BASE_URL ?>/users/delete-trajectory/<?= $tray['id'] ?? '' ?>" class="d-inline" onsubmit="return confirm('¿Eliminar registro?')">
-                                            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
-                                            <button type="submit" class="btn btn-sm btn-link text-danger p-0 border-0">
-                                                <i class="bi bi-x-circle-fill fs-6"></i>
-                                            </button>
-                                        </form>
-                                    </td>
                                     <td class="fw-semibold"><?= htmlspecialchars($tray['movement'] ?? '') ?></td>
                                     <td class="text-center"><?= !empty($tray['movement_date']) ? date('d/m/Y', strtotime($tray['movement_date'])) : '' ?></td>
                                     <td class="text-center">
@@ -463,6 +455,14 @@ $csrfToken = CSRF::generateToken();
                                         </span>
                                     </td>
                                     <td><?= htmlspecialchars($tray['notes'] ?? '') ?></td>
+                                    <td class="text-center">
+                                        <form method="POST" action="<?= BASE_URL ?>/users/delete-trajectory/<?= $tray['id'] ?? '' ?>" class="d-inline" onsubmit="return confirm('¿Eliminar registro de trayectoria?')">
+                                            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar Trayectoria" data-bs-toggle="tooltip">
+                                                <i class="bi bi-trash fs-5"></i>
+                                            </button>
+                                        </form>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
@@ -717,7 +717,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // --- AUTOCOMPLETAR FECHA DE NACIMIENTO DESDE LA CURP ---
+    // --- AUTOCOMPLETAR FECHA DE NACIMIENTO DESDE LA CURP O EDICIÓN MANUAL ---
     const curpInput = document.getElementById('curpInput');
     const birthDateInput = document.getElementById('birthDateInput');
 
@@ -733,13 +733,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 const century = (parseInt(yearDigits) > parseInt(currentTwoDigits)) ? '19' : '20';
                 
                 birthDateInput.value = `${century}${yearDigits}-${month}-${day}`;
+                birthDateInput.readOnly = true;
+                birthDateInput.classList.add('bg-light');
+            } else {
+                birthDateInput.readOnly = false;
+                birthDateInput.classList.remove('bg-light');
             }
         }
 
         curpInput.addEventListener('input', updateBirthDateFromCURP);
-        if (curpInput.value) {
-            updateBirthDateFromCURP();
-        }
+        updateBirthDateFromCURP();
     }
 
     // --- GUARDAR TRAYECTORIA VÍA AJAX ---

@@ -27,6 +27,12 @@ $router->add('POST', '/login', 'AuthController@login');
 $router->add('GET', '/logout', 'AuthController@logout');
 $router->add('POST', '/change-password', 'AuthController@changePassword');
 
+// Password Recovery routes
+$router->add('GET', '/forgot-password', 'AuthController@showForgotPassword');
+$router->add('POST', '/forgot-password', 'AuthController@forgotPassword');
+$router->add('GET', '/reset-password', 'AuthController@showResetPassword');
+$router->add('POST', '/reset-password', 'AuthController@resetPassword');
+
 // Dashboard redirect
 $router->add('GET', '/', 'UserController@index');
 
@@ -54,6 +60,10 @@ $router->add('GET', '/users/edit/{id}', 'UserController@edit');
 $router->add('POST', '/users/update/{id}', 'UserController@update');
 $router->add('POST', '/users/delete/{id}', 'UserController@delete');
 
+// Acciones de Documentos Oficiales
+$router->add('POST', '/users/upload-document', 'UserController@uploadDocument');
+$router->add('POST', '/users/delete-document/{id}', 'UserController@deleteDocument');
+
 // Acciones de Capacitaciones / Trainings en Perfil de Usuario
 $router->add('POST', '/users/add-training', 'UserController@addTraining');
 $router->add('POST', '/users/create-and-assign-training', 'UserController@createAndAssignTraining');
@@ -71,16 +81,6 @@ $router->add('POST', '/trainings/delete', 'TrainingController@delete');
 $router->add('POST', '/users/add-trajectory', 'UserController@addTrajectory');
 $router->add('POST', '/users/delete-trajectory/{id}', 'UserController@deleteTrajectory');
 
-// Auth & Password Recovery routes
-$router->add('GET', '/login', 'AuthController@showLogin');
-$router->add('POST', '/login', 'AuthController@login');
-$router->add('GET', '/logout', 'AuthController@logout');
-$router->add('POST', '/change-password', 'AuthController@changePassword');
-
-$router->add('GET', '/forgot-password', 'AuthController@showForgotPassword');
-$router->add('POST', '/forgot-password', 'AuthController@forgotPassword');
-$router->add('GET', '/reset-password', 'AuthController@showResetPassword');
-$router->add('POST', '/reset-password', 'AuthController@resetPassword');
 // Módulo Template / Plantillas
 $router->add('GET', '/templates/reporte-semanal', 'TemplateController@reporteSemanal');
 $router->add('GET', '/templates/bitacora-incidencias', 'TemplateController@bitacoraIncidencias');
