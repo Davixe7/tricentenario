@@ -81,6 +81,11 @@ $router->add('POST', '/trainings/delete', 'TrainingController@delete');
 $router->add('POST', '/users/add-trajectory', 'UserController@addTrajectory');
 $router->add('POST', '/users/delete-trajectory/{id}', 'UserController@deleteTrajectory');
 
+// Acciones de Información Adicional en Perfil de Usuario
+$router->add('POST', '/users/add-additional-info', 'UserController@addAdditionalInfo');
+$router->add('POST', '/users/upload-additional-info-attachment', 'UserController@uploadAdditionalInfoAttachment');
+$router->add('POST', '/users/delete-additional-info/{id}', 'UserController@deleteAdditionalInfo');
+
 // Módulo Template / Plantillas
 $router->add('GET', '/templates/reporte-semanal', 'TemplateController@reporteSemanal');
 $router->add('GET', '/templates/bitacora-incidencias', 'TemplateController@bitacoraIncidencias');

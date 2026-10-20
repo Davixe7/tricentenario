@@ -216,4 +216,40 @@ class User {
         $stmt = $this->db->prepare("DELETE FROM user_trajectories WHERE id = :id");
         return $stmt->execute([':id' => $id]);
     }
+
+    // --- INFORMACIÓN ADICIONAL ---
+
+    public function getAdditionalInfosByUserId($userId) {
+        $stmt = $this->db->prepare("SELECT * FROM user_additional_infos WHERE user_id = :user_id ORDER BY info_date DESC, id DESC");
+        $stmt->execute([':user_id' => $userId]);
+        return $stmt->fetchAll();
+    }
+
+    public function getAdditionalInfoById($id) {
+        $stmt = $this->db->prepare("SELECT * FROM user_additional_infos WHERE id = :id");
+        $stmt->execute([':id' => $id]);
+        return $stmt->fetch();
+    }
+
+    public function addAdditionalInfo($userId, $infoDate, $description) {
+        $stmt = $this->db->prepare("INSERT INTO user_additional_infos (user_id, info_date, description) VALUES (:user_id, :info_date, :description)");
+        return $stmt->execute([
+            ':user_id' => $userId,
+            ':info_date' => $infoDate,
+            ':description' => $description
+        ]);
+    }
+
+    public function updateAdditionalInfoAttachment($id, $attachmentPath) {
+        $stmt = $this->db->prepare("UPDATE user_additional_infos SET attachment_path = :attachment_path WHERE id = :id");
+        return $stmt->execute([
+            ':id' => $id,
+            ':attachment_path' => $attachmentPath
+        ]);
+    }
+
+    public function deleteAdditionalInfo($id) {
+        $stmt = $this->db->prepare("DELETE FROM user_additional_infos WHERE id = :id");
+        return $stmt->execute([':id' => $id]);
+    }
 }

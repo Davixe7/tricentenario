@@ -48,6 +48,7 @@ class UserController {
 
         $documents = [];
         $trajectories = [];
+        $additionalInfos = [];
         $userTrainings = [];
         $allTrainings = $this->trainingModel->getAllWithUserCount();
         require_once __DIR__ . '/../Views/users/form.php';
@@ -111,6 +112,7 @@ class UserController {
 
         $documents = $this->userModel->getDocumentsByUserId($id);
         $trajectories = $this->userModel->getTrajectoriesByUserId($id);
+        $additionalInfos = $this->userModel->getAdditionalInfosByUserId($id);
         
         $userTrainings = $this->trainingModel->getByUser($id);
         $allTrainings = $this->trainingModel->getAllWithUserCount();
@@ -256,6 +258,82 @@ class UserController {
         if ($tray) {
             $this->userModel->deleteTrajectory($id);
             header('Location: ' . BASE_URL . '/users/edit/' . $tray['user_id']);
+            exit;
+        }
+        header('Location: ' . BASE_URL . '/users');
+        exit;
+    }
+
+    // --- ACCIONES INFORMACIÓN ADICIONAL ---
+
+    public function addAdditionalInfo() {
+        header('Content-Type: application/json');
+
+        if (!CSRF::validateToken($_POST['csrf_token'] ?? '')) {
+            echo json_encode(['success' => false, 'message' => 'Invalid CSRF Token']);
+            exit;
+        }
+
+        $userId = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
+        $infoDate = $_POST['info_date'] ?? null;
+        $description = trim($_POST['description'] ?? '');
+
+        if ($userId && $infoDate && $description) {
+            $inserted = $this->userModel->addAdditionalInfo($userId, $infoDate, $description);
+            echo json_encode(['success' => (bool)$inserted]);
+        } else {
+            echo json_encode(['success' => false, 'message' => 'Datos incompletos']);
+        }
+        exit;
+    }
+
+    public function uploadAdditionalInfoAttachment() {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            if (!CSRF::validateToken($_POST['csrf_token'] ?? '')) {
+                die('Invalid CSRF Token');
+            }
+
+            $additionalInfoId = !empty($_POST['additional_info_id']) ? (int)$_POST['additional_info_id'] : null;
+            $userId = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
+
+            if ($additionalInfoId && isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+                $uploadDir = UPLOAD_DIR . 'additionals/';
+                if (!is_dir($uploadDir)) {
+                    mkdir($uploadDir, 0755, true);
+                }
+
+                $ext = pathinfo($_FILES['attachment']['name'], PATHINFO_EXTENSION);
+                $filename = 'add_' . $additionalInfoId . '_' . time() . '.' . strtolower($ext);
+
+                if (move_uploaded_file($_FILES['attachment']['tmp_name'], $uploadDir . $filename)) {
+                    $this->userModel->updateAdditionalInfoAttachment($additionalInfoId, $filename);
+                }
+            }
+
+            if ($userId) {
+                header('Location: ' . BASE_URL . '/users/edit/' . $userId);
+            } else {
+                header('Location: ' . BASE_URL . '/users');
+            }
+            exit;
+        }
+    }
+
+    public function deleteAdditionalInfo($id) {
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && !CSRF::validateToken($_POST['csrf_token'] ?? '')) {
+            die('Invalid CSRF Token');
+        }
+
+        $info = $this->userModel->getAdditionalInfoById($id);
+        if ($info) {
+            if (!empty($info['attachment_path'])) {
+                $fullPath = UPLOAD_DIR . 'additionals/' . basename($info['attachment_path']);
+                if (file_exists($fullPath)) {
+                    @unlink($fullPath);
+                }
+            }
+            $this->userModel->deleteAdditionalInfo($id);
+            header('Location: ' . BASE_URL . '/users/edit/' . $info['user_id']);
             exit;
         }
         header('Location: ' . BASE_URL . '/users');
