@@ -43,7 +43,6 @@ class UserController {
         $positions = $this->positionModel->getAll('active');
         $activeUsers = $this->userModel->getAll('active', null, 1000, 0);
         
-        // Al crear un usuario nuevo, todos los activos están disponibles como contraparte
         $counterpartUsers = $activeUsers;
 
         $documents = [];
@@ -90,6 +89,7 @@ class UserController {
         ];
 
         $this->userModel->create($data);
+        $_SESSION['success'] = 'Usuario creado exitosamente.';
         header('Location: ' . BASE_URL . '/users');
         exit;
     }
@@ -97,6 +97,7 @@ class UserController {
     public function edit($id) {
         $user = $this->userModel->find($id);
         if (!$user) {
+            $_SESSION['error'] = 'Usuario no encontrado.';
             header('Location: ' . BASE_URL . '/users');
             exit;
         }
@@ -105,7 +106,6 @@ class UserController {
         $positions = $this->positionModel->getAll('active');
         $activeUsers = $this->userModel->getAll('active', null, 1000, 0);
 
-        // Excluir al propio usuario que se está editando para que no pueda ser su propia contraparte
         $counterpartUsers = array_filter($activeUsers, function($u) use ($id) {
             return $u['id'] != $id;
         });
@@ -158,6 +158,7 @@ class UserController {
         }
 
         $this->userModel->update($id, $data);
+        $_SESSION['success'] = 'Usuario actualizado exitosamente.';
         header('Location: ' . BASE_URL . '/users');
         exit;
     }
@@ -168,6 +169,7 @@ class UserController {
         }
 
         $this->userModel->softDelete($id);
+        $_SESSION['success'] = 'Usuario desactivado correctamente.';
         header('Location: ' . BASE_URL . '/users');
         exit;
     }
@@ -194,7 +196,12 @@ class UserController {
             if (move_uploaded_file($_FILES['document']['tmp_name'], $uploadDir . $filename)) {
                 $filePath = 'uploads/documents/' . $filename;
                 $this->userModel->addDocument($userId, $description, $filePath);
+                $_SESSION['success'] = 'Documento oficial adjuntado correctamente.';
+            } else {
+                $_SESSION['error'] = 'No se pudo mover el archivo al servidor.';
             }
+        } else {
+            $_SESSION['error'] = 'Datos incompletos o error en el archivo.';
         }
 
         if ($userId) {
@@ -217,9 +224,11 @@ class UserController {
                 @unlink($fullPath);
             }
             $this->userModel->deleteDocument($id);
+            $_SESSION['success'] = 'Documento eliminado correctamente.';
             header('Location: ' . BASE_URL . '/users/edit/' . $doc['user_id']);
             exit;
         }
+        $_SESSION['error'] = 'Documento no encontrado.';
         header('Location: ' . BASE_URL . '/users');
         exit;
     }
@@ -242,6 +251,9 @@ class UserController {
 
         if ($userId && $movement && $movementDate) {
             $inserted = $this->userModel->addTrajectory($userId, $movement, $movementDate, $rehireable, $notes);
+            if ($inserted) {
+                $_SESSION['success'] = 'Registro de trayectoria agregado correctamente.';
+            }
             echo json_encode(['success' => (bool)$inserted]);
         } else {
             echo json_encode(['success' => false, 'message' => 'Datos incompletos']);
@@ -257,9 +269,11 @@ class UserController {
         $tray = $this->userModel->getTrajectoryById($id);
         if ($tray) {
             $this->userModel->deleteTrajectory($id);
+            $_SESSION['success'] = 'Registro de trayectoria eliminado correctamente.';
             header('Location: ' . BASE_URL . '/users/edit/' . $tray['user_id']);
             exit;
         }
+        $_SESSION['error'] = 'Registro de trayectoria no encontrado.';
         header('Location: ' . BASE_URL . '/users');
         exit;
     }
@@ -280,6 +294,9 @@ class UserController {
 
         if ($userId && $infoDate && $description) {
             $inserted = $this->userModel->addAdditionalInfo($userId, $infoDate, $description);
+            if ($inserted) {
+                $_SESSION['success'] = 'Información adicional agregada correctamente.';
+            }
             echo json_encode(['success' => (bool)$inserted]);
         } else {
             echo json_encode(['success' => false, 'message' => 'Datos incompletos']);
@@ -307,6 +324,7 @@ class UserController {
 
                 if (move_uploaded_file($_FILES['attachment']['tmp_name'], $uploadDir . $filename)) {
                     $this->userModel->updateAdditionalInfoAttachment($additionalInfoId, $filename);
+                    $_SESSION['success'] = 'Comprobante adjuntado correctamente a la información adicional.';
                 }
             }
 
@@ -333,9 +351,11 @@ class UserController {
                 }
             }
             $this->userModel->deleteAdditionalInfo($id);
+            $_SESSION['success'] = 'Registro de información adicional eliminado correctamente.';
             header('Location: ' . BASE_URL . '/users/edit/' . $info['user_id']);
             exit;
         }
+        $_SESSION['error'] = 'Registro no encontrado.';
         header('Location: ' . BASE_URL . '/users');
         exit;
     }
@@ -353,6 +373,7 @@ class UserController {
 
             if ($userId && $trainingId) {
                 $this->trainingModel->assignToUser($userId, $trainingId);
+                $_SESSION['success'] = 'Capacitación asignada correctamente.';
             }
 
             if ($userId) {
@@ -405,6 +426,7 @@ class UserController {
                         }
                     }
                 }
+                $_SESSION['success'] = 'Capacitación creada y asignada correctamente.';
             }
 
             if ($userId) {
@@ -436,6 +458,7 @@ class UserController {
 
                 if (move_uploaded_file($_FILES['attachment']['tmp_name'], $uploadDir . $filename)) {
                     $this->trainingModel->updateAttachment($userTrainingId, $filename);
+                    $_SESSION['success'] = 'Comprobante de capacitación adjuntado correctamente.';
                 }
             }
 
@@ -459,6 +482,7 @@ class UserController {
 
             if ($userTrainingId) {
                 $this->trainingModel->removeUserTraining($userTrainingId);
+                $_SESSION['success'] = 'Capacitación retirada del colaborador correctamente.';
             }
 
             if ($userId) {

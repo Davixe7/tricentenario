@@ -53,7 +53,7 @@ $csrfToken = CSRF::generateToken();
     border: 1px solid #ccc;
 }
 
-/* Estilos de distinción visual para secciones */
+/* Estilos de distinción visual para secciones en tarjetas */
 .section-card {
     border: 1px solid #dce5ef;
     border-radius: 8px;
@@ -90,6 +90,23 @@ $csrfToken = CSRF::generateToken();
 
 <div class="card border-0 shadow-sm">
     <div class="card-body p-4">
+
+        <!-- MENSAJES FLASH / NOTIFICACIONES -->
+        <?php if (!empty($_SESSION['success'])): ?>
+            <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i><?= htmlspecialchars($_SESSION['success']) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <?php unset($_SESSION['success']); ?>
+        <?php endif; ?>
+
+        <?php if (!empty($_SESSION['error'])): ?>
+            <div class="alert alert-danger alert-dismissible fade show mb-4" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i><?= htmlspecialchars($_SESSION['error']) ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            <?php unset($_SESSION['error']); ?>
+        <?php endif; ?>
 
         <form action="<?= $user ? BASE_URL . '/users/update/' . $user['id'] : BASE_URL . '/users/store' ?>" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
