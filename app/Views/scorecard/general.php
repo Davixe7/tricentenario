@@ -1,4 +1,3 @@
-<div class="d-none">
 <div class="d-flex align-items-center justify-content-between mb-3">
     <h4 class="fw-bold text-brand-dark mb-0">Boleta / General</h4>
 </div>
@@ -191,7 +190,6 @@
             </div>
         </div>
     </div>
-</div>
 </div>
 
 <script>
