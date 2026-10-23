@@ -65,7 +65,7 @@ class UserController {
             move_uploaded_file($_FILES['avatar']['tmp_name'], UPLOAD_DIR . $avatarName);
         }
 
-        // Convertir email vacío a NULL para evitar colisiones de Unique Key
+        // Si el email viene vacío, se guarda estrictamente como NULL
         $email = trim($_POST['email'] ?? '');
         $emailValue = !empty($email) ? $email : null;
 
@@ -99,7 +99,16 @@ class UserController {
             exit;
         } catch (\PDOException $e) {
             if ($e->getCode() == 23000) {
-                $_SESSION['error'] = 'No se pudo guardar el usuario. Es posible que el nombre de usuario, correo o número de empleado ya esté registrado.';
+                $errorMsg = $e->getMessage();
+                if (strpos($errorMsg, 'username') !== false) {
+                    $_SESSION['error'] = 'El nombre de usuario ya está registrado. Por favor elija otro.';
+                } elseif (strpos($errorMsg, 'employee_number') !== false) {
+                    $_SESSION['error'] = 'El número de empleado ya se encuentra registrado.';
+                } elseif (strpos($errorMsg, 'email') !== false) {
+                    $_SESSION['error'] = 'El correo electrónico ya está registrado.';
+                } else {
+                    $_SESSION['error'] = 'Ya existe un registro con información duplicada (usuario o número de empleado).';
+                }
             } else {
                 $_SESSION['error'] = 'Error al guardar el usuario en la base de datos: ' . $e->getMessage();
             }
@@ -181,7 +190,16 @@ class UserController {
             exit;
         } catch (\PDOException $e) {
             if ($e->getCode() == 23000) {
-                $_SESSION['error'] = 'No se pudo actualizar el usuario. El nombre de usuario, correo o número de empleado coincide con un registro existente.';
+                $errorMsg = $e->getMessage();
+                if (strpos($errorMsg, 'username') !== false) {
+                    $_SESSION['error'] = 'El nombre de usuario ya está registrado en otro perfil.';
+                } elseif (strpos($errorMsg, 'employee_number') !== false) {
+                    $_SESSION['error'] = 'El número de empleado ya pertenece a otro usuario.';
+                } elseif (strpos($errorMsg, 'email') !== false) {
+                    $_SESSION['error'] = 'El correo electrónico ya está registrado en otro perfil.';
+                } else {
+                    $_SESSION['error'] = 'No se pudo actualizar. Los datos coinciden con un registro existente.';
+                }
             } else {
                 $_SESSION['error'] = 'Error al actualizar el usuario: ' . $e->getMessage();
             }
@@ -337,7 +355,7 @@ class UserController {
                 die('Invalid CSRF Token');
             }
 
-            $additionalInfoId = !empty($_POST['additional_info_id']) ? (int)$_POST['additional_info_id'] : null;
+            $additionalInfoId = !empty($_POST['additional_info_id']) ? (int$_POST['additional_info_id']) : null;
             $userId = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
 
             if ($additionalInfoId && isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
