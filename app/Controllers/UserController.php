@@ -69,9 +69,9 @@ class UserController {
             move_uploaded_file($_FILES['avatar']['tmp_name'], UPLOAD_DIR . $avatarName);
         }
 
-        // Convertir email vacío a NULL estrictamente
+        // Si el email está vacío o solo tiene espacios, se convierte estrictamente a NULL
         $email = trim($_POST['email'] ?? '');
-        $emailValue = !empty($email) ? $email : null;
+        $emailValue = ($email !== '') ? $email : null;
 
         $data = [
             'employee_number' => !empty($_POST['employee_number']) ? (int)$_POST['employee_number'] : null,
@@ -157,7 +157,7 @@ class UserController {
         }
 
         $email = trim($_POST['email'] ?? '');
-        $emailValue = !empty($email) ? $email : null;
+        $emailValue = ($email !== '') ? $email : null;
 
         $data = [
             'employee_number' => !empty($_POST['employee_number']) ? (int)$_POST['employee_number'] : null,
