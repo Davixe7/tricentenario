@@ -279,13 +279,13 @@ $old = $oldInput ?? [];
                             <tr>
                                 <td class="label-col">Teléfono: <span class="text-danger">*</span></td>
                                 <td class="input-col">
-                                    <input type="text" name="phone" class="form-control form-control-sm" value="<?= htmlspecialchars($old['phone'] ?? $user['phone'] ?? '') ?>">
+                                    <input type="text" name="phone" class="form-control form-control-sm" value="<?= htmlspecialchars($old['phone'] ?? $user['phone'] ?? '') ?>" required>
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-col">NSS: <span class="text-danger">*</span></td>
                                 <td class="input-col">
-                                    <input type="text" name="nss" class="form-control form-control-sm" value="<?= htmlspecialchars($old['nss'] ?? $user['nss'] ?? '') ?>">
+                                    <input type="text" name="nss" class="form-control form-control-sm" value="<?= htmlspecialchars($old['nss'] ?? $user['nss'] ?? '') ?>" required>
                                 </td>
                             </tr>
                             <tr>
