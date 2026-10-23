@@ -30,7 +30,14 @@ class PositionController {
         $status = $_POST['status'] ?? 'active';
 
         if (!empty($name)) {
-            $this->positionModel->create($name, $status);
+            try {
+                $this->positionModel->create($name, $status);
+                $_SESSION['success'] = 'Puesto creado exitosamente.';
+            } catch (\PDOException $e) {
+                $_SESSION['error'] = 'No se pudo crear el puesto. Es posible que el nombre ya exista.';
+            }
+        } else {
+            $_SESSION['error'] = 'El nombre del puesto es obligatorio.';
         }
 
         header('Location: ' . BASE_URL . '/positions');
@@ -55,7 +62,14 @@ class PositionController {
         $status = $_POST['status'] ?? 'active';
 
         if (!empty($name)) {
-            $this->positionModel->update($id, $name, $status);
+            try {
+                $this->positionModel->update($id, $name, $status);
+                $_SESSION['success'] = 'Puesto actualizado exitosamente.';
+            } catch (\PDOException $e) {
+                $_SESSION['error'] = 'Error al actualizar el puesto. Es posible que el nombre ya exista.';
+            }
+        } else {
+            $_SESSION['error'] = 'El nombre del puesto no puede estar vacío.';
         }
 
         header('Location: ' . BASE_URL . '/positions');
@@ -68,6 +82,7 @@ class PositionController {
         }
 
         $this->positionModel->softDelete($id);
+        $_SESSION['success'] = 'Puesto desactivado correctamente.';
         header('Location: ' . BASE_URL . '/positions');
         exit;
     }

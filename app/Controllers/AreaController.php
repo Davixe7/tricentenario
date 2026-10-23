@@ -30,7 +30,14 @@ class AreaController {
         $status = $_POST['status'] ?? 'active';
 
         if (!empty($name)) {
-            $this->areaModel->create($name, $status);
+            try {
+                $this->areaModel->create($name, $status);
+                $_SESSION['success'] = 'Área creada exitosamente.';
+            } catch (\PDOException $e) {
+                $_SESSION['error'] = 'No se pudo crear el área. Es posible que el nombre ya exista.';
+            }
+        } else {
+            $_SESSION['error'] = 'El nombre del área es obligatorio.';
         }
 
         header('Location: ' . BASE_URL . '/areas');
@@ -55,7 +62,14 @@ class AreaController {
         $status = $_POST['status'] ?? 'active';
 
         if (!empty($name)) {
-            $this->areaModel->update($id, $name, $status);
+            try {
+                $this->areaModel->update($id, $name, $status);
+                $_SESSION['success'] = 'Área actualizada exitosamente.';
+            } catch (\PDOException $e) {
+                $_SESSION['error'] = 'Error al actualizar el área. Es posible que el nombre ya exista.';
+            }
+        } else {
+            $_SESSION['error'] = 'El nombre del área no puede estar vacío.';
         }
 
         header('Location: ' . BASE_URL . '/areas');
@@ -68,6 +82,7 @@ class AreaController {
         }
 
         $this->areaModel->softDelete($id);
+        $_SESSION['success'] = 'Área desactivada correctamente.';
         header('Location: ' . BASE_URL . '/areas');
         exit;
     }

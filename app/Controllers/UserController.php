@@ -65,6 +65,10 @@ class UserController {
             move_uploaded_file($_FILES['avatar']['tmp_name'], UPLOAD_DIR . $avatarName);
         }
 
+        // Convertir email vacío a NULL para evitar colisiones de Unique Key
+        $email = trim($_POST['email'] ?? '');
+        $emailValue = !empty($email) ? $email : null;
+
         $data = [
             'employee_number' => !empty($_POST['employee_number']) ? (int)$_POST['employee_number'] : null,
             'first_name' => trim($_POST['first_name']),
@@ -72,7 +76,7 @@ class UserController {
             'last_name_maternal' => trim($_POST['last_name_maternal'] ?? ''),
             'username' => trim($_POST['username']),
             'password' => password_hash($_POST['password'], PASSWORD_BCRYPT),
-            'email' => trim($_POST['email'] ?? ''),
+            'email' => $emailValue,
             'role' => $_POST['role'],
             'area_id' => !empty($_POST['area_id']) ? (int)$_POST['area_id'] : null,
             'position_id' => !empty($_POST['position_id']) ? (int)$_POST['position_id'] : null,
@@ -88,10 +92,20 @@ class UserController {
             'status' => $_POST['status'] ?? 'active'
         ];
 
-        $this->userModel->create($data);
-        $_SESSION['success'] = 'Usuario creado exitosamente.';
-        header('Location: ' . BASE_URL . '/users');
-        exit;
+        try {
+            $this->userModel->create($data);
+            $_SESSION['success'] = 'Usuario creado exitosamente.';
+            header('Location: ' . BASE_URL . '/users');
+            exit;
+        } catch (\PDOException $e) {
+            if ($e->getCode() == 23000) {
+                $_SESSION['error'] = 'No se pudo guardar el usuario. Es posible que el nombre de usuario, correo o número de empleado ya esté registrado.';
+            } else {
+                $_SESSION['error'] = 'Error al guardar el usuario en la base de datos: ' . $e->getMessage();
+            }
+            header('Location: ' . BASE_URL . '/users/create');
+            exit;
+        }
     }
 
     public function edit($id) {
@@ -125,13 +139,16 @@ class UserController {
             die('Invalid CSRF Token');
         }
 
+        $email = trim($_POST['email'] ?? '');
+        $emailValue = !empty($email) ? $email : null;
+
         $data = [
             'employee_number' => !empty($_POST['employee_number']) ? (int)$_POST['employee_number'] : null,
             'first_name' => trim($_POST['first_name']),
             'last_name_paternal' => trim($_POST['last_name_paternal']),
             'last_name_maternal' => trim($_POST['last_name_maternal'] ?? ''),
             'username' => trim($_POST['username']),
-            'email' => trim($_POST['email'] ?? ''),
+            'email' => $emailValue,
             'role' => $_POST['role'],
             'area_id' => !empty($_POST['area_id']) ? (int)$_POST['area_id'] : null,
             'position_id' => !empty($_POST['position_id']) ? (int)$_POST['position_id'] : null,
@@ -157,10 +174,20 @@ class UserController {
             $data['avatar'] = $avatarName;
         }
 
-        $this->userModel->update($id, $data);
-        $_SESSION['success'] = 'Usuario actualizado exitosamente.';
-        header('Location: ' . BASE_URL . '/users');
-        exit;
+        try {
+            $this->userModel->update($id, $data);
+            $_SESSION['success'] = 'Usuario actualizado exitosamente.';
+            header('Location: ' . BASE_URL . '/users');
+            exit;
+        } catch (\PDOException $e) {
+            if ($e->getCode() == 23000) {
+                $_SESSION['error'] = 'No se pudo actualizar el usuario. El nombre de usuario, correo o número de empleado coincide con un registro existente.';
+            } else {
+                $_SESSION['error'] = 'Error al actualizar el usuario: ' . $e->getMessage();
+            }
+            header('Location: ' . BASE_URL . '/users/edit/' . $id);
+            exit;
+        }
     }
 
     public function delete($id) {
