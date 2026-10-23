@@ -45,6 +45,10 @@ class UserController {
         
         $counterpartUsers = $activeUsers;
 
+        // Recuperar datos previos en caso de error
+        $oldInput = $_SESSION['old_input'] ?? [];
+        unset($_SESSION['old_input']);
+
         $documents = [];
         $trajectories = [];
         $additionalInfos = [];
@@ -65,7 +69,7 @@ class UserController {
             move_uploaded_file($_FILES['avatar']['tmp_name'], UPLOAD_DIR . $avatarName);
         }
 
-        // Si el email viene vacío, se guarda estrictamente como NULL
+        // Convertir email vacío a NULL estrictamente
         $email = trim($_POST['email'] ?? '');
         $emailValue = !empty($email) ? $email : null;
 
@@ -98,6 +102,7 @@ class UserController {
             header('Location: ' . BASE_URL . '/users');
             exit;
         } catch (\PDOException $e) {
+            $_SESSION['old_input'] = $_POST;
             if ($e->getCode() == 23000) {
                 $errorMsg = $e->getMessage();
                 if (strpos($errorMsg, 'username') !== false) {
@@ -107,7 +112,7 @@ class UserController {
                 } elseif (strpos($errorMsg, 'email') !== false) {
                     $_SESSION['error'] = 'El correo electrónico ya está registrado.';
                 } else {
-                    $_SESSION['error'] = 'Ya existe un registro con información duplicada (usuario o número de empleado).';
+                    $_SESSION['error'] = 'Ya existe un registro con información duplicada.';
                 }
             } else {
                 $_SESSION['error'] = 'Error al guardar el usuario en la base de datos: ' . $e->getMessage();
@@ -128,6 +133,9 @@ class UserController {
         $areas = $this->areaModel->getAll('active');
         $positions = $this->positionModel->getAll('active');
         $activeUsers = $this->userModel->getAll('active', null, 1000, 0);
+
+        $oldInput = $_SESSION['old_input'] ?? [];
+        unset($_SESSION['old_input']);
 
         $counterpartUsers = array_filter($activeUsers, function($u) use ($id) {
             return $u['id'] != $id;
@@ -189,6 +197,7 @@ class UserController {
             header('Location: ' . BASE_URL . '/users');
             exit;
         } catch (\PDOException $e) {
+            $_SESSION['old_input'] = $_POST;
             if ($e->getCode() == 23000) {
                 $errorMsg = $e->getMessage();
                 if (strpos($errorMsg, 'username') !== false) {
@@ -355,7 +364,7 @@ class UserController {
                 die('Invalid CSRF Token');
             }
 
-            $additionalInfoId = !empty($_POST['additional_info_id']) ? (int$_POST['additional_info_id']) : null;
+            $additionalInfoId = !empty($_POST['additional_info_id']) ? (int)$_POST['additional_info_id'] : null;
             $userId = !empty($_POST['user_id']) ? (int)$_POST['user_id'] : null;
 
             if ($additionalInfoId && isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {

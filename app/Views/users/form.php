@@ -1,6 +1,7 @@
 <?php 
 require_once __DIR__ . '/../layout/header.php'; 
 $csrfToken = CSRF::generateToken();
+$old = $oldInput ?? [];
 ?>
 
 <style>
@@ -122,25 +123,25 @@ $csrfToken = CSRF::generateToken();
                             <tr>
                                 <td class="label-col">No. Empleado: <span class="text-danger">*</span></td>
                                 <td class="input-col">
-                                    <input type="number" step="1" name="employee_number" class="form-control form-control-sm" value="<?= htmlspecialchars($user['employee_number'] ?? '') ?>" required placeholder="Campo numérico sin decimales">
+                                    <input type="number" step="1" name="employee_number" class="form-control form-control-sm" value="<?= htmlspecialchars($old['employee_number'] ?? $user['employee_number'] ?? '') ?>" required placeholder="Campo numérico sin decimales">
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-col">Nombre(s): <span class="text-danger">*</span></td>
                                 <td class="input-col">
-                                    <input type="text" name="first_name" class="form-control form-control-sm" value="<?= htmlspecialchars($user['first_name'] ?? '') ?>" required>
+                                    <input type="text" name="first_name" class="form-control form-control-sm" value="<?= htmlspecialchars($old['first_name'] ?? $user['first_name'] ?? '') ?>" required>
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-col">Apellido Paterno: <span class="text-danger">*</span></td>
                                 <td class="input-col">
-                                    <input type="text" name="last_name_paternal" class="form-control form-control-sm" value="<?= htmlspecialchars($user['last_name_paternal'] ?? '') ?>" required>
+                                    <input type="text" name="last_name_paternal" class="form-control form-control-sm" value="<?= htmlspecialchars($old['last_name_paternal'] ?? $user['last_name_paternal'] ?? '') ?>" required>
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-col">Apellido Materno:</td>
                                 <td class="input-col">
-                                    <input type="text" name="last_name_maternal" class="form-control form-control-sm" value="<?= htmlspecialchars($user['last_name_maternal'] ?? '') ?>">
+                                    <input type="text" name="last_name_maternal" class="form-control form-control-sm" value="<?= htmlspecialchars($old['last_name_maternal'] ?? $user['last_name_maternal'] ?? '') ?>">
                                 </td>
                             </tr>
                             <tr>
@@ -148,8 +149,11 @@ $csrfToken = CSRF::generateToken();
                                 <td class="input-col">
                                     <select name="position_id" class="form-select form-select-sm" required>
                                         <option value="">-- Seleccionar Puesto --</option>
-                                        <?php foreach ($positions as $p): ?>
-                                            <option value="<?= $p['id'] ?>" <?= (($user['position_id'] ?? '') == $p['id']) ? 'selected' : '' ?>><?= htmlspecialchars($p['name']) ?></option>
+                                        <?php 
+                                            $valPos = $old['position_id'] ?? $user['position_id'] ?? '';
+                                            foreach ($positions as $p): 
+                                        ?>
+                                            <option value="<?= $p['id'] ?>" <?= ($valPos == $p['id']) ? 'selected' : '' ?>><?= htmlspecialchars($p['name']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </td>
@@ -159,8 +163,11 @@ $csrfToken = CSRF::generateToken();
                                 <td class="input-col">
                                     <select name="area_id" class="form-select form-select-sm" required>
                                         <option value="">-- Seleccionar Área --</option>
-                                        <?php foreach ($areas as $a): ?>
-                                            <option value="<?= $a['id'] ?>" <?= (($user['area_id'] ?? '') == $a['id']) ? 'selected' : '' ?>><?= htmlspecialchars($a['name']) ?></option>
+                                        <?php 
+                                            $valArea = $old['area_id'] ?? $user['area_id'] ?? '';
+                                            foreach ($areas as $a): 
+                                        ?>
+                                            <option value="<?= $a['id'] ?>" <?= ($valArea == $a['id']) ? 'selected' : '' ?>><?= htmlspecialchars($a['name']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </td>
@@ -170,8 +177,11 @@ $csrfToken = CSRF::generateToken();
                                 <td class="input-col">
                                     <select name="supervisor_id" class="form-select form-select-sm">
                                         <option value="">-- Ninguno --</option>
-                                        <?php foreach ($activeUsers as $u): ?>
-                                            <option value="<?= $u['id'] ?>" <?= (($user['supervisor_id'] ?? '') == $u['id']) ? 'selected' : '' ?>><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name_paternal']) ?></option>
+                                        <?php 
+                                            $valSup = $old['supervisor_id'] ?? $user['supervisor_id'] ?? '';
+                                            foreach ($activeUsers as $u): 
+                                        ?>
+                                            <option value="<?= $u['id'] ?>" <?= ($valSup == $u['id']) ? 'selected' : '' ?>><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name_paternal']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </td>
@@ -179,7 +189,7 @@ $csrfToken = CSRF::generateToken();
                             <tr>
                                 <td class="label-col">Usuario sistema: <span class="text-danger">*</span></td>
                                 <td class="input-col">
-                                    <input type="text" name="username" class="form-control form-control-sm" value="<?= htmlspecialchars($user['username'] ?? '') ?>" required>
+                                    <input type="text" name="username" class="form-control form-control-sm" value="<?= htmlspecialchars($old['username'] ?? $user['username'] ?? '') ?>" required>
                                 </td>
                             </tr>
                             <tr>
@@ -194,27 +204,29 @@ $csrfToken = CSRF::generateToken();
                             <tr>
                                 <td class="label-col">Rol (en sistema): <span class="text-danger">*</span></td>
                                 <td class="input-col">
+                                    <?php $valRole = $old['role'] ?? $user['role'] ?? ''; ?>
                                     <select name="role" id="roleSelect" class="form-select form-select-sm" onchange="checkRole()" required>
-                                        <option value="General Admin" <?= (($user['role'] ?? '') === 'General Admin') ? 'selected' : '' ?>>Administrador General</option>
-                                        <option value="Administrative Reporter" <?= (($user['role'] ?? '') === 'Administrative Reporter') ? 'selected' : '' ?>>Reportero Administrativo</option>
-                                        <option value="Operational Reporter" <?= (($user['role'] ?? '') === 'Operational Reporter') ? 'selected' : '' ?>>Reportero Operativo</option>
-                                        <option value="Collaborator" <?= (($user['role'] ?? '') === 'Collaborator') ? 'selected' : '' ?>>Colaborador</option>
+                                        <option value="General Admin" <?= ($valRole === 'General Admin') ? 'selected' : '' ?>>Administrador General</option>
+                                        <option value="Administrative Reporter" <?= ($valRole === 'Administrative Reporter') ? 'selected' : '' ?>>Reportero Administrativo</option>
+                                        <option value="Operational Reporter" <?= ($valRole === 'Operational Reporter') ? 'selected' : '' ?>>Reportero Operativo</option>
+                                        <option value="Collaborator" <?= ($valRole === 'Collaborator') ? 'selected' : '' ?>>Colaborador</option>
                                     </select>
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-col">Correo electrónico:</td>
                                 <td class="input-col">
-                                    <input type="email" name="email" class="form-control form-control-sm" value="<?= htmlspecialchars($user['email'] ?? '') ?>" placeholder="Opcional">
+                                    <input type="email" name="email" class="form-control form-control-sm" value="<?= htmlspecialchars($old['email'] ?? $user['email'] ?? '') ?>" placeholder="Opcional">
                                 </td>
                             </tr>
                             <tr id="counterpartTr">
                                 <td class="label-col">Reportero Contraparte: <span id="counterpartAsterisk" class="text-danger" style="display:none;">*</span></td>
                                 <td class="input-col">
+                                    <?php $valCount = $old['counterpart_reporter_id'] ?? $user['counterpart_reporter_id'] ?? ''; ?>
                                     <select name="counterpart_reporter_id" id="counterpartSelect" class="form-select form-select-sm">
                                         <option value="">-- Seleccionar --</option>
                                         <?php foreach ($counterpartUsers ?? $activeUsers as $u): ?>
-                                            <option value="<?= $u['id'] ?>" <?= (($user['counterpart_reporter_id'] ?? '') == $u['id']) ? 'selected' : '' ?>><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name_paternal']) ?></option>
+                                            <option value="<?= $u['id'] ?>" <?= ($valCount == $u['id']) ? 'selected' : '' ?>><?= htmlspecialchars($u['first_name'] . ' ' . $u['last_name_paternal']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
                                 </td>
@@ -222,9 +234,10 @@ $csrfToken = CSRF::generateToken();
                             <tr>
                                 <td class="label-col">Estatus: <span class="text-danger">*</span></td>
                                 <td class="input-col">
+                                    <?php $valStatus = $old['status'] ?? $user['status'] ?? 'active'; ?>
                                     <select name="status" class="form-select form-select-sm">
-                                        <option value="active" <?= (($user['status'] ?? 'active') === 'active') ? 'selected' : '' ?>>Activo</option>
-                                        <option value="inactive" <?= (($user['status'] ?? '') === 'inactive') ? 'selected' : '' ?>>Inactivo</option>
+                                        <option value="active" <?= ($valStatus === 'active') ? 'selected' : '' ?>>Activo</option>
+                                        <option value="inactive" <?= ($valStatus === 'inactive') ? 'selected' : '' ?>>Inactivo</option>
                                     </select>
                                 </td>
                             </tr>
@@ -266,37 +279,37 @@ $csrfToken = CSRF::generateToken();
                             <tr>
                                 <td class="label-col">Teléfono: <span class="text-danger">*</span></td>
                                 <td class="input-col">
-                                    <input type="text" name="phone" class="form-control form-control-sm" value="<?= htmlspecialchars($user['phone'] ?? '') ?>">
+                                    <input type="text" name="phone" class="form-control form-control-sm" value="<?= htmlspecialchars($old['phone'] ?? $user['phone'] ?? '') ?>">
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-col">NSS: <span class="text-danger">*</span></td>
                                 <td class="input-col">
-                                    <input type="text" name="nss" class="form-control form-control-sm" value="<?= htmlspecialchars($user['nss'] ?? '') ?>">
+                                    <input type="text" name="nss" class="form-control form-control-sm" value="<?= htmlspecialchars($old['nss'] ?? $user['nss'] ?? '') ?>">
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-col">R.F.C.:</td>
                                 <td class="input-col">
-                                    <input type="text" name="rfc" class="form-control form-control-sm text-uppercase" value="<?= htmlspecialchars($user['rfc'] ?? '') ?>">
+                                    <input type="text" name="rfc" class="form-control form-control-sm text-uppercase" value="<?= htmlspecialchars($old['rfc'] ?? $user['rfc'] ?? '') ?>">
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-col">CURP:</td>
                                 <td class="input-col">
-                                    <input type="text" name="curp" id="curpInput" class="form-control form-control-sm text-uppercase" value="<?= htmlspecialchars($user['curp'] ?? '') ?>" maxlength="18">
+                                    <input type="text" name="curp" id="curpInput" class="form-control form-control-sm text-uppercase" value="<?= htmlspecialchars($old['curp'] ?? $user['curp'] ?? '') ?>" maxlength="18">
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-col">Fecha Nacimiento:</td>
                                 <td class="input-col">
-                                    <input type="date" name="birth_date" id="birthDateInput" class="form-control form-control-sm" value="<?= htmlspecialchars($user['birth_date'] ?? '') ?>">
+                                    <input type="date" name="birth_date" id="birthDateInput" class="form-control form-control-sm" value="<?= htmlspecialchars($old['birth_date'] ?? $user['birth_date'] ?? '') ?>">
                                 </td>
                             </tr>
                             <tr>
                                 <td class="label-col">Dirección:</td>
                                 <td class="input-col">
-                                    <textarea name="address" class="form-control form-control-sm" rows="3" placeholder="Campo de texto amplio"><?= htmlspecialchars($user['address'] ?? '') ?></textarea>
+                                    <textarea name="address" class="form-control form-control-sm" rows="3" placeholder="Campo de texto amplio"><?= htmlspecialchars($old['address'] ?? $user['address'] ?? '') ?></textarea>
                                 </td>
                             </tr>
                         </tbody>
@@ -697,7 +710,7 @@ $csrfToken = CSRF::generateToken();
                                 <select name="training_id" class="form-select" required>
                                     <option value="">-- Seleccionar Capacitación --</option>
                                     <?php if (!empty($allTrainings)): ?>
-                                        <?php foreach ($allTrainings as$tr): ?>
+                                        <?php foreach ($allTrainings as $tr): ?>
                                             <option value="<?= $tr['id'] ?>">
                                                 <?= htmlspecialchars($tr['title']) ?> (<?= date('d/m/Y', strtotime($tr['training_date'])) ?>)
                                             </option>
