@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../Models/Scorecard.php';
+require_once __DIR__ . '/../Models/User.php';
 
 class ScorecardController {
     private $scorecardModel;
@@ -44,8 +45,28 @@ class ScorecardController {
     }
 
     public function individuals() {
-        require_once __DIR__ . '/../Views/layout/header.php';
-        echo '<div class="p-4"><h4>Módulo de Boletas Individuales en desarrollo</h4></div>';
-        require_once __DIR__ . '/../Views/layout/footer.php';
+        $db = Database::getInstance();
+        
+        // Consultar a los usuarios activos cuyo PUESTO sea "Despachador"
+        $stmtUsers = $db->prepare("
+            SELECT u.id, u.employee_number, u.first_name, u.last_name_paternal 
+            FROM users u
+            JOIN positions p ON u.position_id = p.id
+            WHERE u.status = 'active' AND p.name LIKE :position_name
+            ORDER BY u.first_name ASC
+        ");
+        $stmtUsers->execute([':position_name' => '%Despachador%']);
+        $activeUsers = $stmtUsers->fetchAll(PDO::FETCH_ASSOC);
+
+        $selectedUserId = $_GET['user_id'] ?? null;
+        $selectedUserScorecards = [];
+
+        if ($selectedUserId) {
+            $stmt = $db->prepare("SELECT * FROM user_monthly_scorecards WHERE user_id = :user_id ORDER BY semester DESC, month_index ASC");
+            $stmt->execute([':user_id' => $selectedUserId]);
+            $selectedUserScorecards = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        require_once __DIR__ . '/../Views/scorecard/individuals.php';
     }
 }

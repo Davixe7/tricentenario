@@ -125,7 +125,6 @@ class TemplateController {
                 $targetFile = $uploadDir . $filename;
 
                 if (move_uploaded_file($_FILES['excel_file']['tmp_name'], $targetFile)) {
-                    // Pasar el nombre original del archivo para detectar el año (ej. 2025)
                     $processingResult = $this->processExcelDataToScorecard($targetFile, $config['key'], $semesterNum, $originalName);
                     $rowCount = $processingResult['row_count'];
                     
@@ -197,9 +196,9 @@ class TemplateController {
         }
 
         $validRowCount = 0;
-        $monthlyDataAccumulator = [];
+        $monthlyGlobalAccumulator = [];
+        $individualRecords = [];
 
-        // Detección automática del año a partir del nombre del archivo (ej. 2025) o por defecto 2026
         $currentYear = '2026';
         if (preg_match('/(20\d{2})/', $originalName, $match)) {
             $currentYear = $match[1];
@@ -207,12 +206,18 @@ class TemplateController {
             $currentYear = $match[1];
         }
 
-        $defaultSemesterKey = ($semesterNum ? $semesterNum : '1') . '-' . $currentYear;
-
         $monthNameToIndex = [
             'ENERO' => 1, 'FEBRERO' => 2, 'MARZO' => 3, 'ABRIL' => 4, 'MAYO' => 5, 'JUNIO' => 6,
             'JULIO' => 7, 'AGOSTO' => 8, 'SEPTIEMBRE' => 9, 'OCTUBRE' => 10, 'NOVIEMBRE' => 11, 'DICIEMBRE' => 12
         ];
+
+        // Mapear los números de empleado existentes en la base de datos
+        $db = Database::getInstance();
+        $userMap = [];
+        $stmtUsers = $db->query("SELECT id, employee_number FROM users WHERE employee_number IS NOT NULL");
+        while ($uRow = $stmtUsers->fetch(PDO::FETCH_ASSOC)) {
+            $userMap[(int)$uRow['employee_number']] = (int)$uRow['id'];
+        }
 
         for ($i = 1; $i < count($rows); $i++) {
             $row = $rows[$i];
@@ -246,9 +251,12 @@ class TemplateController {
                 if (empty($monthName)) { $monthName = 'Enero'; $monthIndex = 1; }
 
                 $semesterKey = ($monthIndex <= 6 ? '1' : '2') . '-' . $currentYear;
+                $empNum = intval($rowData['# EMPLEADO'] ?? 0);
+                $matchedUserId = $userMap[$empNum] ?? null;
 
-                if (!isset($monthlyDataAccumulator[$semesterKey][$monthName])) {
-                    $monthlyDataAccumulator[$semesterKey][$monthName] = [
+                // 1. Acumulador Global (para la boleta general)
+                if (!isset($monthlyGlobalAccumulator[$semesterKey][$monthName])) {
+                    $monthlyGlobalAccumulator[$semesterKey][$monthName] = [
                         'month_index' => $monthIndex,
                         'sales_sum' => 0, 'sales_count' => 0,
                         'steps_sum' => 0, 'steps_count' => 0,
@@ -260,10 +268,9 @@ class TemplateController {
                     ];
                 }
 
-                $mAcc = &$monthlyDataAccumulator[$semesterKey][$monthName];
+                $mAcc = &$monthlyGlobalAccumulator[$semesterKey][$monthName];
                 $litros = floatval($rowData['LITROS'] ?? 0);
                 $meta = floatval($rowData['META'] ?? 2500);
-                
                 $ventasPct = $meta > 0 ? (($litros / $meta) * 100) : 0;
 
                 $mAcc['sales_sum'] += $ventasPct;
@@ -295,95 +302,86 @@ class TemplateController {
                 $mAcc['centenarios_redeemed'] += intval($rowData['CENTENARIOS OTORGADOS'] ?? 0);
                 $mAcc['redemption_amount'] += floatval($rowData['IMPORTE CANJE'] ?? 0);
 
-            } elseif ($templateKey === 'bitacora_incidencias') {
-                $rawMonthName = strtoupper(trim($rowData['MES'] ?? 'ENERO'));
-                $monthIndex = $monthNameToIndex[$rawMonthName] ?? (int)($rowData['# MES'] ?? 1);
-                $monthName = ucwords(strtolower($rawMonthName));
-                if (empty($monthName)) { $monthName = 'Enero'; $monthIndex = 1; }
+                // 2. Registro Individual (si el empleado existe en la BD)
+                if ($matchedUserId) {
+                    $indSales = $ventasPct;
+                    if ($indSales > 999.99) $indSales = 999.99;
 
-                $semesterKey = ($monthIndex <= 6 ? '1' : '2') . '-' . $currentYear;
+                    $indStep = floatval($rowData['6 PASOS'] ?? 0);
+                    if ($indStep > 0 && $indStep <= 1) $indStep *= 100;
 
-                if (!isset($monthlyDataAccumulator[$semesterKey][$monthName])) {
-                    $monthlyDataAccumulator[$semesterKey][$monthName] = [
+                    $indHabit = floatval($rowData['ASISTENCIA HÁBITOS'] ?? 0);
+                    if ($indHabit > 0 && $indHabit <= 1) $indHabit *= 100;
+
+                    $indBonus = floatval($rowData['BONO PRODUCTIVIDAD'] ?? 0);
+                    if ($indBonus > 0 && $indBonus <= 1) $indBonus *= 100;
+
+                    $individualRecords[] = [
+                        'semester' => $semesterKey,
+                        'month_name' => $monthName,
                         'month_index' => $monthIndex,
-                        'incidents_count' => 0
+                        'user_id' => $matchedUserId,
+                        'sales' => $indSales,
+                        'performance' => $indSales,
+                        'attendance_habits' => $indHabit,
+                        'six_steps' => $indStep,
+                        'productivity_bonus' => $indBonus,
+                        'oils' => intval($rowData['ACEITES'] ?? 0),
+                        'wrong_loadings' => intval($rowData['CARGAS EQUIVOCADAS'] ?? 0),
+                        'client_complaints' => intval($rowData['QUEJAS DEL CLIENTE'] ?? 0),
+                        'wrong_charges' => intval($rowData['COBROS EQUIVOCADOS'] ?? 0),
+                        'invoices' => intval($rowData['FACTURAS'] ?? 0),
+                        'absences' => intval($rowData['FALTAS'] ?? 0),
+                        'centenarios_received' => intval($rowData['CENTENARIOS RECIBIDOS'] ?? 0),
+                        'centenarios_redeemed' => intval($rowData['CENTENARIOS OTORGADOS'] ?? 0),
+                        'redemption_amount' => floatval($rowData['IMPORTE CANJE'] ?? 0)
                     ];
                 }
-                $monthlyDataAccumulator[$semesterKey][$monthName]['incidents_count']++;
-
-            } elseif ($templateKey === 'calificaciones_360') {
-                $semesterKey = $defaultSemesterKey;
-                $monthName = str_starts_with($semesterKey, '1-') ? 'Enero' : 'Julio';
-                $monthIndex = str_starts_with($semesterKey, '1-') ? 1 : 7;
-
-                if (!isset($monthlyDataAccumulator[$semesterKey][$monthName])) {
-                    $monthlyDataAccumulator[$semesterKey][$monthName] = [
-                        'month_index' => $monthIndex,
-                        'eval_360_sum' => 0, 'eval_360_count' => 0
-                    ];
-                }
-                $val360 = floatval($rowData['CALIFICACIÓN 360º'] ?? $rowData['CALIFICACION'] ?? 0);
-                if ($val360 > 0 && $val360 <= 1) $val360 *= 100;
-                $monthlyDataAccumulator[$semesterKey][$monthName]['eval_360_sum'] += $val360;
-                $monthlyDataAccumulator[$semesterKey][$monthName]['eval_360_count']++;
-
-            } elseif ($templateKey === 'proyecto_semestre') {
-                $semesterKey = $defaultSemesterKey;
-                $monthName = str_starts_with($semesterKey, '1-') ? 'Enero' : 'Julio';
-                $monthIndex = str_starts_with($semesterKey, '1-') ? 1 : 7;
-
-                if (!isset($monthlyDataAccumulator[$semesterKey][$monthName])) {
-                    $monthlyDataAccumulator[$semesterKey][$monthName] = [
-                        'month_index' => $monthIndex,
-                        'project_sum' => 0
-                    ];
-                }
-                $monthlyDataAccumulator[$semesterKey][$monthName]['project_sum'] += floatval($rowData['PROYECTO SEMESTRE'] ?? $rowData['PROYECTO'] ?? 0);
             }
         }
 
-        foreach ($monthlyDataAccumulator as $semKey => $monthsArr) {
+        // Guardar Totales Globales en monthly_scorecards
+        foreach ($monthlyGlobalAccumulator as $semKey => $monthsArr) {
             foreach ($monthsArr as $mName => $vals) {
-                $dataToSave = [];
                 $mIdx = $vals['month_index'] ?? 1;
+                $sCount = max(1, $vals['sales_count']);
+                $stCount = max(1, $vals['steps_count']);
+                $hCount = max(1, $vals['habits_count']);
+                $bCount = max(1, $vals['bonus_count']);
 
-                if ($templateKey === 'reporte_semanal') {
-                    $sCount = max(1, $vals['sales_count']);
-                    $stCount = max(1, $vals['steps_count']);
-                    $hCount = max(1, $vals['habits_count']);
-                    $bCount = max(1, $vals['bonus_count']);
+                $salesVal = round($vals['sales_sum'] / $sCount, 2);
+                if ($salesVal > 999.99) $salesVal = 999.99;
 
-                    $salesVal = round($vals['sales_sum'] / $sCount, 2);
-                    if ($salesVal > 999.99) $salesVal = 999.99; // Límite seguro para DECIMAL(5,2)
-
-                    $dataToSave['sales'] = $salesVal;
-                    $dataToSave['performance'] = $salesVal;
-                    $dataToSave['attendance_habits'] = round($vals['habits_sum'] / $hCount, 2);
-                    $dataToSave['six_steps'] = round($vals['steps_sum'] / $stCount, 2);
-                    $dataToSave['productivity_bonus'] = round($vals['bonus_sum'] / $bCount, 2);
-                    $dataToSave['oils'] = $vals['oils'];
-                    $dataToSave['wrong_loadings'] = $vals['wrong_loadings'];
-                    $dataToSave['client_complaints'] = $vals['client_complaints'];
-                    $dataToSave['wrong_charges'] = $vals['wrong_charges'];
-                    $dataToSave['invoices'] = $vals['invoices'];
-                    $dataToSave['absences'] = $vals['absences'];
-                    $dataToSave['centenarios_received'] = $vals['centenarios_received'];
-                    $dataToSave['centenarios_redeemed'] = $vals['centenarios_redeemed'];
-                    $dataToSave['redemption_amount'] = $vals['redemption_amount'];
-
-                } elseif ($templateKey === 'bitacora_incidencias') {
-                    $dataToSave['incidents'] = $vals['incidents_count'];
-
-                } elseif ($templateKey === 'calificaciones_360') {
-                    $eCount = max(1, $vals['eval_360_count']);
-                    $dataToSave['eval_360'] = round($vals['eval_360_sum'] / $eCount, 2);
-
-                } elseif ($templateKey === 'proyecto_semestre') {
-                    $dataToSave['semester_project_1'] = $vals['project_sum'];
-                }
+                $dataToSave = [
+                    'sales' => $salesVal,
+                    'performance' => $salesVal,
+                    'attendance_habits' => round($vals['habits_sum'] / $hCount, 2),
+                    'six_steps' => round($vals['steps_sum'] / $stCount, 2),
+                    'productivity_bonus' => round($vals['bonus_sum'] / $bCount, 2),
+                    'oils' => $vals['oils'],
+                    'wrong_loadings' => $vals['wrong_loadings'],
+                    'client_complaints' => $vals['client_complaints'],
+                    'wrong_charges' => $vals['wrong_charges'],
+                    'invoices' => $vals['invoices'],
+                    'absences' => $vals['absences'],
+                    'centenarios_received' => $vals['centenarios_received'],
+                    'centenarios_redeemed' => $vals['centenarios_redeemed'],
+                    'redemption_amount' => $vals['redemption_amount']
+                ];
 
                 $this->templateModel->updateMonthlyScorecardFromData($semKey, $mName, $mIdx, $dataToSave);
             }
+        }
+
+        // Guardar Registros Individuales en user_monthly_scorecards
+        foreach ($individualRecords as $ind) {
+            $uId = $ind['user_id'];
+            $semKey = $ind['semester'];
+            $mName = $ind['month_name'];
+            $mIdx = $ind['month_index'];
+            unset($ind['user_id'], $ind['semester'], $ind['month_name'], $ind['month_index']);
+
+            $this->templateModel->updateUserMonthlyScorecard($semKey, $mName, $mIdx, $uId, $ind);
         }
 
         return ['row_count' => max(1, $validRowCount)];

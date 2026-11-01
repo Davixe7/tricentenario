@@ -197,7 +197,7 @@ class UserController {
         try {
             $this->userModel->update($id, $data);
             $_SESSION['success'] = 'Usuario actualizado exitosamente.';
-            header('Location: ' . BASE_URL . '/users');
+            header('Location: ' . BASE_URL . '/users/edit/' . $id);
             exit;
         } catch (\PDOException $e) {
             $_SESSION['old_input'] = $_POST;

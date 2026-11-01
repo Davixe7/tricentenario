@@ -39,6 +39,7 @@ class Template {
         ]);
     }
 
+    // Guarda o actualiza los totales generales (Boleta General)
     public function updateMonthlyScorecardFromData($semesterKey, $monthName, $monthIndex, $data) {
         $sqlCheck = "SELECT id FROM monthly_scorecards WHERE semester = :semester AND month_name = :month_name";
         $stmt = $this->db->prepare($sqlCheck);
@@ -69,23 +70,23 @@ class Template {
             $params = [
                 ':semester' => $semesterKey,
                 ':month_name' => $monthName,
-                ':sales' => $data['sales'] ?? null,
-                ':performance' => $data['performance'] ?? null,
-                ':incidents' => $data['incidents'] ?? null,
-                ':attendance_habits' => $data['attendance_habits'] ?? null,
-                ':wrong_loadings' => $data['wrong_loadings'] ?? null,
-                ':six_steps' => $data['six_steps'] ?? null,
-                ':client_complaints' => $data['client_complaints'] ?? null,
-                ':wrong_charges' => $data['wrong_charges'] ?? null,
-                ':oils' => $data['oils'] ?? null,
-                ':invoices' => $data['invoices'] ?? null,
-                ':productivity_bonus' => $data['productivity_bonus'] ?? null,
-                ':absences' => $data['absences'] ?? null,
-                ':centenarios_received' => $data['centenarios_received'] ?? null,
-                ':centenarios_redeemed' => $data['centenarios_redeemed'] ?? null,
-                ':redemption_amount' => $data['redemption_amount'] ?? null,
-                ':eval_360' => $data['eval_360'] ?? null,
-                ':semester_project_1' => $data['semester_project_1'] ?? null
+                ':sales' => $data['sales'] ?? 0,
+                ':performance' => $data['performance'] ?? 0,
+                ':incidents' => $data['incidents'] ?? 0,
+                ':attendance_habits' => $data['attendance_habits'] ?? 0,
+                ':wrong_loadings' => $data['wrong_loadings'] ?? 0,
+                ':six_steps' => $data['six_steps'] ?? 0,
+                ':client_complaints' => $data['client_complaints'] ?? 0,
+                ':wrong_charges' => $data['wrong_charges'] ?? 0,
+                ':oils' => $data['oils'] ?? 0,
+                ':invoices' => $data['invoices'] ?? 0,
+                ':productivity_bonus' => $data['productivity_bonus'] ?? 0,
+                ':absences' => $data['absences'] ?? 0,
+                ':centenarios_received' => $data['centenarios_received'] ?? 0,
+                ':centenarios_redeemed' => $data['centenarios_redeemed'] ?? 0,
+                ':redemption_amount' => $data['redemption_amount'] ?? 0,
+                ':eval_360' => $data['eval_360'] ?? 0,
+                ':semester_project_1' => $data['semester_project_1'] ?? 0
             ];
         } else {
             $sql = "INSERT INTO monthly_scorecards 
@@ -120,6 +121,90 @@ class Template {
                 ':redemption_amount' => $data['redemption_amount'] ?? 0,
                 ':eval_360' => $data['eval_360'] ?? 0,
                 ':semester_project_1' => $data['semester_project_1'] ?? 0
+            ];
+        }
+
+        $stmtSave = $this->db->prepare($sql);
+        return $stmtSave->execute($params);
+    }
+
+    // Guarda o actualiza los registros individuales (Boleta Individual)
+    public function updateUserMonthlyScorecard($semesterKey, $monthName, $monthIndex, $userId, $data) {
+        $sqlCheck = "SELECT id FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
+        $stmt = $this->db->prepare($sqlCheck);
+        $stmt->execute([
+            ':user_id' => $userId,
+            ':semester' => $semesterKey, 
+            ':month_name' => $monthName
+        ]);
+        $exists = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($exists) {
+            $sql = "UPDATE user_monthly_scorecards SET 
+                    sales = :sales,
+                    performance = :performance,
+                    attendance_habits = :attendance_habits,
+                    six_steps = :six_steps,
+                    productivity_bonus = :productivity_bonus,
+                    oils = :oils,
+                    wrong_loadings = :wrong_loadings,
+                    client_complaints = :client_complaints,
+                    wrong_charges = :wrong_charges,
+                    invoices = :invoices,
+                    absences = :absences,
+                    centenarios_received = :centenarios_received,
+                    centenarios_redeemed = :centenarios_redeemed,
+                    redemption_amount = :redemption_amount
+                    WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
+
+            $params = [
+                ':user_id' => $userId,
+                ':semester' => $semesterKey,
+                ':month_name' => $monthName,
+                ':sales' => $data['sales'] ?? 0,
+                ':performance' => $data['performance'] ?? 0,
+                ':attendance_habits' => $data['attendance_habits'] ?? 0,
+                ':six_steps' => $data['six_steps'] ?? 0,
+                ':productivity_bonus' => $data['productivity_bonus'] ?? 0,
+                ':oils' => $data['oils'] ?? 0,
+                ':wrong_loadings' => $data['wrong_loadings'] ?? 0,
+                ':client_complaints' => $data['client_complaints'] ?? 0,
+                ':wrong_charges' => $data['wrong_charges'] ?? 0,
+                ':invoices' => $data['invoices'] ?? 0,
+                ':absences' => $data['absences'] ?? 0,
+                ':centenarios_received' => $data['centenarios_received'] ?? 0,
+                ':centenarios_redeemed' => $data['centenarios_redeemed'] ?? 0,
+                ':redemption_amount' => $data['redemption_amount'] ?? 0
+            ];
+        } else {
+            $sql = "INSERT INTO user_monthly_scorecards 
+                    (user_id, semester, month_name, month_index, sales, performance, attendance_habits, 
+                     six_steps, productivity_bonus, oils, wrong_loadings, client_complaints, 
+                     wrong_charges, invoices, absences, centenarios_received, centenarios_redeemed, redemption_amount) 
+                    VALUES 
+                    (:user_id, :semester, :month_name, :month_index, :sales, :performance, :attendance_habits, 
+                     :six_steps, :productivity_bonus, :oils, :wrong_loadings, :client_complaints, 
+                     :wrong_charges, :invoices, :absences, :centenarios_received, :centenarios_redeemed, :redemption_amount)";
+
+            $params = [
+                ':user_id' => $userId,
+                ':semester' => $semesterKey,
+                ':month_name' => $monthName,
+                ':month_index' => $monthIndex,
+                ':sales' => $data['sales'] ?? 0,
+                ':performance' => $data['performance'] ?? 0,
+                ':attendance_habits' => $data['attendance_habits'] ?? 0,
+                ':six_steps' => $data['six_steps'] ?? 0,
+                ':productivity_bonus' => $data['productivity_bonus'] ?? 0,
+                ':oils' => $data['oils'] ?? 0,
+                ':wrong_loadings' => $data['wrong_loadings'] ?? 0,
+                ':client_complaints' => $data['client_complaints'] ?? 0,
+                ':wrong_charges' => $data['wrong_charges'] ?? 0,
+                ':invoices' => $data['invoices'] ?? 0,
+                ':absences' => $data['absences'] ?? 0,
+                ':centenarios_received' => $data['centenarios_received'] ?? 0,
+                ':centenarios_redeemed' => $data['centenarios_redeemed'] ?? 0,
+                ':redemption_amount' => $data['redemption_amount'] ?? 0
             ];
         }
 
