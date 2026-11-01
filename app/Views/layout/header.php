@@ -83,7 +83,7 @@
                 </a>
                 <div class="collapse ms-3" id="plantillasDropdown">
                     <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/templates/reporte-semanal">
-                        <i class="bi bi-file-earmark-excel me-2"></i>1. Reporte Semanal
+                        <i class="bi bi-file-earmark-excel me-2"></i>1. Reporte Mensual
                     </a>
                     <a class="nav-link py-2 fs-7" href="<?= BASE_URL ?>/templates/bitacora-incidencias">
                         <i class="bi bi-file-earmark-excel me-2"></i>2. Bitácora de Incidencias

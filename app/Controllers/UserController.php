@@ -25,7 +25,10 @@ class UserController {
         // Paginación
         $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
         if ($page < 1) $page = 1;
-        $perPage = 10;
+        $perPage = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 10;
+        if ($perPage < 1) $perPage = 10;
+        if ($perPage > 1000) $perPage = 1000;
+        
         $offset = ($page - 1) * $perPage;
 
         $totalUsers = $this->userModel->getTotalCount($statusFilter, $searchFilter);

@@ -8,9 +8,9 @@ class TemplateController {
     private $types = [
         'reporte-semanal' => [
             'key' => 'reporte_semanal',
-            'title' => '1. Reporte Semanal de Despachadores',
-            'tab_title' => 'Reporte Semanal',
-            'filename' => '1_Reporte_Semanal_Despachadores.xlsx',
+            'title' => '1. Reporte Mensual de Despachadores',
+            'tab_title' => 'Reporte Mensual',
+            'filename' => '1_Reporte_Mensual_Despachadores.xlsx',
             'has_semester' => false,
             'date_format_note' => false
         ],
@@ -120,11 +120,13 @@ class TemplateController {
                     mkdir($uploadDir, 0755, true);
                 }
 
+                $originalName = $_FILES['excel_file']['name'];
                 $filename = $config['key'] . ($semesterNum ? '_sem' . $semesterNum : '') . '_' . time() . '.' . $ext;
                 $targetFile = $uploadDir . $filename;
 
                 if (move_uploaded_file($_FILES['excel_file']['tmp_name'], $targetFile)) {
-                    $processingResult = $this->processExcelDataToScorecard($targetFile, $config['key'], $semesterNum);
+                    // Pasar el nombre original del archivo para detectar el año (ej. 2025)
+                    $processingResult = $this->processExcelDataToScorecard($targetFile, $config['key'], $semesterNum, $originalName);
                     $rowCount = $processingResult['row_count'];
                     
                     $userId = $_SESSION['user']['id'] ?? null;
@@ -141,7 +143,7 @@ class TemplateController {
         exit;
     }
 
-    private function processExcelDataToScorecard($filePath, $templateKey, $semesterNum) {
+    private function processExcelDataToScorecard($filePath, $templateKey, $semesterNum, $originalName = '') {
         if (!class_exists('ZipArchive')) {
             return ['row_count' => 0];
         }
@@ -179,7 +181,6 @@ class TemplateController {
             return ['row_count' => 0];
         }
 
-        // Mapeo dinámico de columna (A, B, C...) al nombre del encabezado (Fila 0)
         $headerMap = [];
         $firstRow = $rows[0];
         foreach ($firstRow->c as $c) {
@@ -197,7 +198,15 @@ class TemplateController {
 
         $validRowCount = 0;
         $monthlyDataAccumulator = [];
+
+        // Detección automática del año a partir del nombre del archivo (ej. 2025) o por defecto 2026
         $currentYear = '2026';
+        if (preg_match('/(20\d{2})/', $originalName, $match)) {
+            $currentYear = $match[1];
+        } elseif (preg_match('/(20\d{2})/', $filePath, $match)) {
+            $currentYear = $match[1];
+        }
+
         $defaultSemesterKey = ($semesterNum ? $semesterNum : '1') . '-' . $currentYear;
 
         $monthNameToIndex = [
@@ -205,7 +214,6 @@ class TemplateController {
             'JULIO' => 7, 'AGOSTO' => 8, 'SEPTIEMBRE' => 9, 'OCTUBRE' => 10, 'NOVIEMBRE' => 11, 'DICIEMBRE' => 12
         ];
 
-        // Recorrer filas de datos (a partir de la fila 1)
         for ($i = 1; $i < count($rows); $i++) {
             $row = $rows[$i];
             $rowData = [];
@@ -254,7 +262,6 @@ class TemplateController {
 
                 $mAcc = &$monthlyDataAccumulator[$semesterKey][$monthName];
                 $litros = floatval($rowData['LITROS'] ?? 0);
-                $dias = floatval($rowData['DIAS'] ?? 1);
                 $meta = floatval($rowData['META'] ?? 2500);
                 
                 $ventasPct = $meta > 0 ? (($litros / $meta) * 100) : 0;
@@ -346,8 +353,11 @@ class TemplateController {
                     $hCount = max(1, $vals['habits_count']);
                     $bCount = max(1, $vals['bonus_count']);
 
-                    $dataToSave['sales'] = round($vals['sales_sum'] / $sCount, 2);
-                    $dataToSave['performance'] = round($vals['sales_sum'] / $sCount, 2);
+                    $salesVal = round($vals['sales_sum'] / $sCount, 2);
+                    if ($salesVal > 999.99) $salesVal = 999.99; // Límite seguro para DECIMAL(5,2)
+
+                    $dataToSave['sales'] = $salesVal;
+                    $dataToSave['performance'] = $salesVal;
                     $dataToSave['attendance_habits'] = round($vals['habits_sum'] / $hCount, 2);
                     $dataToSave['six_steps'] = round($vals['steps_sum'] / $stCount, 2);
                     $dataToSave['productivity_bonus'] = round($vals['bonus_sum'] / $bCount, 2);

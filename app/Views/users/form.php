@@ -5,7 +5,6 @@ $old = $oldInput ?? [];
 ?>
 
 <style>
-/* Estilos para el diseño reticular de formulario */
 .form-table {
     width: 100%;
     border-collapse: collapse;
@@ -31,8 +30,6 @@ $old = $oldInput ?? [];
     border-radius: 4px;
     font-size: 0.9rem;
 }
-
-/* Contenedor Drag & Drop para Fotografía */
 .drop-zone {
     border: 2px dashed #0d6efd;
     border-radius: 8px;
@@ -53,8 +50,6 @@ $old = $oldInput ?? [];
     border-radius: 6px;
     border: 1px solid #ccc;
 }
-
-/* Estilos de distinción visual para secciones en tarjetas */
 .section-card {
     border: 1px solid #dce5ef;
     border-radius: 8px;
@@ -89,7 +84,7 @@ $old = $oldInput ?? [];
     <span class="btn btn-light border fw-bold active"><?= $user ? 'Editar Usuario' : 'Nuevo Usuario' ?></span>
 </div>
 
-<div class="card border-0 shadow-sm">
+<div class="card border-0 shadow-sm mb-4">
     <div class="card-body p-4">
 
         <!-- MENSAJES FLASH / NOTIFICACIONES -->
@@ -109,6 +104,7 @@ $old = $oldInput ?? [];
             <?php unset($_SESSION['error']); ?>
         <?php endif; ?>
 
+        <!-- FORMULARIO PRINCIPAL EXCLUSIVO PARA DATOS DE USUARIO -->
         <form action="<?= $user ? BASE_URL . '/users/update/' . $user['id'] : BASE_URL . '/users/store' ?>" method="POST" enctype="multipart/form-data">
             <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
             <input type="hidden" id="user_id" value="<?= $user['id'] ?? '' ?>">
@@ -116,7 +112,6 @@ $old = $oldInput ?? [];
             <!-- INFORMACIÓN LABORAL -->
             <h6 class="fw-bold text-brand-dark border-bottom pb-2 mb-3">INFORMACIÓN LABORAL</h6>
             <div class="row g-4 mb-4">
-                <!-- Columna Izquierda: Formulario en Tabla -->
                 <div class="col-lg-7">
                     <table class="form-table">
                         <tbody>
@@ -220,7 +215,7 @@ $old = $oldInput ?? [];
                                 </td>
                             </tr>
                             <tr id="counterpartTr">
-                                <td class="label-col">Reportero Contraparte: <span id="counterpartAsterisk" class="text-danger" style="display:none;">*</span></td>
+                                <td class="label-col">Reportero Contraparte:</td>
                                 <td class="input-col">
                                     <?php $valCount = $old['counterpart_reporter_id'] ?? $user['counterpart_reporter_id'] ?? ''; ?>
                                     <select name="counterpart_reporter_id" id="counterpartSelect" class="form-select form-select-sm">
@@ -317,331 +312,6 @@ $old = $oldInput ?? [];
                 </div>
             </div>
 
-            <!-- DOCUMENTOS OFICIALES -->
-            <div class="section-card">
-                <div class="section-header">
-                    <span><i class="bi bi-file-earmark-text me-2 text-primary"></i> DOCUMENTOS OFICIALES</span>
-                    <?php if ($user): ?>
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalDocumento">
-                            <i class="bi bi-paperclip me-1"></i> Adjuntar
-                        </button>
-                    <?php endif; ?>
-                </div>
-                <div class="section-body p-0">
-                    <div class="table-responsive mb-0">
-                        <table class="table table-bordered table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Descripción del Documento</th>
-                                    <th class="text-center" style="width: 160px;">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($documents)): ?>
-                                    <?php foreach ($documents as $doc): ?>
-                                        <tr>
-                                            <td><?= htmlspecialchars($doc['description']) ?></td>
-                                            <td class="text-center">
-                                                <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" target="_blank" class="btn btn-sm btn-link text-primary p-1" title="Ver" data-bs-toggle="tooltip">
-                                                    <i class="bi bi-eye fs-5"></i>
-                                                </a>
-                                                <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" download class="btn btn-sm btn-link text-success p-1" title="Descargar" data-bs-toggle="tooltip">
-                                                    <i class="bi bi-download fs-5"></i>
-                                                </a>
-                                                <form method="POST" action="<?= BASE_URL ?>/users/delete-document/<?= $doc['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar documento?')">
-                                                    <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
-                                                    <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar" data-bs-toggle="tooltip">
-                                                        <i class="bi bi-trash fs-5"></i>
-                                                    </button>
-                                                </form>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr>
-                                        <td colspan="2" class="text-center text-muted py-3">
-                                            <?= $user ? 'No hay documentos adjuntos.' : 'Guarde el usuario para habilitar la subida de documentos.' ?>
-                                        </td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- HISTORIAL DE CAPACITACIONES -->
-            <div class="section-card">
-                <div class="section-header">
-                    <span><i class="bi bi-easel me-2 text-primary"></i> HISTORIAL DE CAPACITACIONES</span>
-                    <?php if ($user): ?>
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAsignarCapacitacion">
-                            <i class="bi bi-plus-lg me-1"></i> Asignar Capacitación
-                        </button>
-                    <?php endif; ?>
-                </div>
-                <div class="section-body p-0">
-                    <div class="table-responsive mb-0">
-                        <table class="table table-bordered table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Capacitación</th>
-                                    <th class="text-center" style="width: 150px;">Tipo</th>
-                                    <th class="text-center" style="width: 130px;">Fecha</th>
-                                    <th class="text-center" style="width: 130px;">Duración (hrs)</th>
-                                    <th class="text-center" style="width: 200px;">Adjuntos / Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($userTrainings)): ?>
-                                    <?php foreach ($userTrainings as $ut): ?>
-                                        <tr>
-                                            <td class="fw-semibold text-dark"><?= htmlspecialchars($ut['title']) ?></td>
-                                            <td class="text-center">
-                                                <span class="badge bg-secondary"><?= htmlspecialchars($ut['type']) ?></span>
-                                            </td>
-                                            <td class="text-center"><?= date('d/m/Y', strtotime($ut['training_date'])) ?></td>
-                                            <td class="text-center"><?= htmlspecialchars($ut['duration_hours'] ?: 'N/A') ?></td>
-                                            <td class="text-center">
-                                                <?php if (!empty($ut['attachment_path'])): ?>
-                                                    <a href="<?= BASE_URL ?>/uploads/trainings/<?= htmlspecialchars($ut['attachment_path']) ?>" target="_blank" class="btn btn-sm btn-link text-primary p-1" title="Ver" data-bs-toggle="tooltip">
-                                                        <i class="bi bi-eye fs-5"></i>
-                                                    </a>
-                                                    <a href="<?= BASE_URL ?>/uploads/trainings/<?= htmlspecialchars($ut['attachment_path']) ?>" download class="btn btn-sm btn-link text-success p-1" title="Descargar" data-bs-toggle="tooltip">
-                                                        <i class="bi bi-download fs-5"></i>
-                                                    </a>
-                                                <?php endif; ?>
-                                                
-                                                <button type="button" class="btn btn-sm btn-link text-info p-1" title="Adjuntar" onclick="openUploadModal(<?= $ut['user_training_id'] ?>)" data-bs-toggle="tooltip">
-                                                    <i class="bi bi-paperclip fs-5"></i>
-                                                </button>
-
-                                                <form method="POST" action="<?= BASE_URL ?>/users/delete-training" class="d-inline" onsubmit="return confirm('¿Quitar esta capacitación del colaborador?')">
-                                                    <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
-                                                    <input type="hidden" name="user_training_id" value="<?= $ut['user_training_id'] ?>">
-                                                    <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
-                                                    <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar" data-bs-toggle="tooltip">
-                                                        <i class="bi bi-trash fs-5"></i>
-                                                    </button>
-                                                </form>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted py-3">
-                                            <?= $user ? 'No hay capacitaciones asignadas.' : 'Guarde el usuario para registrar capacitaciones.' ?>
-                                        </td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- INFORMACIÓN ADICIONAL -->
-            <div class="section-card">
-                <div class="section-header">
-                    <span><i class="bi bi-info-circle me-2 text-primary"></i> INFORMACIÓN ADICIONAL</span>
-                </div>
-                <div class="section-body">
-                    <?php if ($user): ?>
-                        <!-- Entrada de Información Adicional -->
-                        <div class="table-responsive mb-3">
-                            <table class="table table-bordered align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr class="text-center">
-                                        <th style="width: 30%;">Fecha</th>
-                                        <th style="width: 65%;">Descripción de lo Sucendido</th>
-                                        <th style="width: 5%;">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>
-                                            <input type="date" id="additional_date" class="form-control form-control-sm text-center">
-                                        </td>
-                                        <td>
-                                            <select id="additional_description_select" class="form-select form-select-sm mb-2" onchange="checkAdditionalDesc(this)">
-                                                <option value="">-- Seleccionar Descripción --</option>
-                                                <option value="Incidencia">Incidencia</option>
-                                                <option value="Permiso">Permiso</option>
-                                                <option value="Falta">Falta</option>
-                                                <option value="Reconocimiento">Reconocimiento</option>
-                                                <option value="Otro">Otro</option>
-                                            </select>
-                                            <input type="text" id="additional_description_input" class="form-control form-control-sm" placeholder="Especifique la descripción..." style="display: none;">
-                                        </td>
-                                        <td class="text-center">
-                                            <button type="button" id="btnAddAdditional" class="btn btn-primary btn-sm" title="Agregar información adicional">
-                                                <i class="bi bi-plus-lg"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Tabla de Información Adicional Registrada -->
-                    <div class="table-responsive mb-0">
-                        <table class="table table-bordered table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 20%;" class="text-center">Fecha</th>
-                                    <th style="width: 55%;">Descripción de lo Sucendido</th>
-                                    <th style="width: 25%;" class="text-center">Adjuntos / Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($additionalInfos)): ?>
-                                    <?php foreach ($additionalInfos as $info): ?>
-                                        <tr>
-                                            <td class="text-center"><?= !empty($info['info_date']) ? date('d/m/Y', strtotime($info['info_date'])) : '' ?></td>
-                                            <td><?= htmlspecialchars($info['description'] ?? '') ?></td>
-                                            <td class="text-center">
-                                                <?php if (!empty($info['attachment_path'])): ?>
-                                                    <a href="<?= BASE_URL ?>/uploads/additionals/<?= htmlspecialchars($info['attachment_path']) ?>" target="_blank" class="btn btn-sm btn-link text-primary p-1" title="Ver" data-bs-toggle="tooltip">
-                                                        <i class="bi bi-eye fs-5"></i>
-                                                    </a>
-                                                    <a href="<?= BASE_URL ?>/uploads/additionals/<?= htmlspecialchars($info['attachment_path']) ?>" download class="btn btn-sm btn-link text-success p-1" title="Descargar" data-bs-toggle="tooltip">
-                                                        <i class="bi bi-download fs-5"></i>
-                                                    </a>
-                                                <?php endif; ?>
-                                                
-                                                <button type="button" class="btn btn-sm btn-link text-info p-1" title="Adjuntar" onclick="openAdditionalUploadModal(<?= $info['id'] ?>)" data-bs-toggle="tooltip">
-                                                    <i class="bi bi-paperclip fs-5"></i>
-                                                </button>
-
-                                                <form method="POST" action="<?= BASE_URL ?>/users/delete-additional-info/<?= $info['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar registro?')">
-                                                    <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
-                                                    <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar" data-bs-toggle="tooltip">
-                                                        <i class="bi bi-trash fs-5"></i>
-                                                    </button>
-                                                </form>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr>
-                                        <td colspan="3" class="text-center text-muted py-3">
-                                            <?= $user ? 'No hay información adicional registrada.' : 'Guarde el usuario para registrar información adicional.' ?>
-                                        </td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TRAYECTORIA -->
-            <div class="section-card">
-                <div class="section-header">
-                    <span><i class="bi bi-signpost-split me-2 text-primary"></i> TRAYECTORIA</span>
-                </div>
-                <div class="section-body">
-                    <?php if ($user): ?>
-                        <!-- Entrada de trayectoria -->
-                        <div class="table-responsive mb-3">
-                            <table class="table table-bordered align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr class="text-center">
-                                        <th style="width: 25%;">Movimiento</th>
-                                        <th style="width: 20%;">Fecha</th>
-                                        <th style="width: 20%;">Recontratable</th>
-                                        <th style="width: 30%;">Observaciones</th>
-                                        <th style="width: 5%;">Acción</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>
-                                            <select id="trayect_movement" class="form-select form-select-sm">
-                                                <option value="Ingreso">Ingreso</option>
-                                                <option value="Baja">Baja</option>
-                                                <option value="Re-ingreso">Re-ingreso</option>
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <input type="date" id="trayect_date" class="form-control form-control-sm text-center">
-                                        </td>
-                                        <td>
-                                            <select id="trayect_rehireable" class="form-select form-select-sm text-center">
-                                                <option value="Si">Sí</option>
-                                                <option value="No">No</option>
-                                            </select>
-                                        </td>
-                                        <td>
-                                            <input type="text" id="trayect_notes" class="form-control form-control-sm" placeholder="Observaciones...">
-                                        </td>
-                                        <td class="text-center">
-                                            <button type="button" id="btnAddTrayectoria" class="btn btn-primary btn-sm" title="Agregar trayectoria">
-                                                <i class="bi bi-plus-lg"></i>
-                                            </button>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Tabla de trayectoria registrada -->
-                    <div class="table-responsive mb-0">
-                        <table class="table table-bordered table-hover align-middle mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th style="width: 25%;">Movimiento</th>
-                                    <th style="width: 20%;" class="text-center">Fecha</th>
-                                    <th style="width: 15%;" class="text-center">Recontratable</th>
-                                    <th style="width: 30%;">Observaciones</th>
-                                    <th style="width: 10%;" class="text-center">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php if (!empty($trajectories)): ?>
-                                    <?php foreach ($trajectories as $tray): ?>
-                                        <tr>
-                                            <td class="fw-semibold"><?= htmlspecialchars($tray['movement'] ?? '') ?></td>
-                                            <td class="text-center"><?= !empty($tray['movement_date']) ? date('d/m/Y', strtotime($tray['movement_date'])) : '' ?></td>
-                                            <td class="text-center">
-                                                <?php 
-                                                    $rehireVal = trim($tray['rehireable'] ?? '');
-                                                    $isYes = (strcasecmp($rehireVal, 'Si') === 0 || strcasecmp($rehireVal, 'Sí') === 0 || strcasecmp($rehireVal, 'SI') === 0 || $rehireVal === '1');
-                                                ?>
-                                                <span class="badge <?= $isYes ? 'bg-success' : 'bg-danger' ?>">
-                                                    <?= htmlspecialchars($tray['rehireable'] ?? '') ?>
-                                                </span>
-                                            </td>
-                                            <td><?= htmlspecialchars($tray['notes'] ?? '') ?></td>
-                                            <td class="text-center">
-                                                <?php if (!empty($tray['id'])): ?>
-                                                    <form method="POST" action="<?= BASE_URL ?>/users/delete-trajectory/<?= $tray['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar registro de trayectoria?')">
-                                                        <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
-                                                        <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar" data-bs-toggle="tooltip">
-                                                            <i class="bi bi-trash fs-5"></i>
-                                                        </button>
-                                                    </form>
-                                                <?php else: ?>
-                                                    <span class="text-muted small">Sin ID</span>
-                                                <?php endif; ?>
-                                            </td>
-                                        </tr>
-                                    <?php endforeach; ?>
-                                <?php else: ?>
-                                    <tr>
-                                        <td colspan="5" class="text-center text-muted py-3">
-                                            <?= $user ? 'No hay movimientos de trayectoria registrados.' : 'Guarde el usuario para registrar trayectoria.' ?>
-                                        </td>
-                                    </tr>
-                                <?php endif; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
             <div class="d-flex justify-content-end gap-2 mt-4">
                 <a href="<?= BASE_URL ?>/users" class="btn btn-light border">Cancelar</a>
                 <button type="submit" class="btn btn-success px-4">Guardar Usuario</button>
@@ -650,8 +320,274 @@ $old = $oldInput ?? [];
     </div>
 </div>
 
+<!-- SECCIONES SECUNDARIAS FUERA DEL FORMULARIO PRINCIPAL -->
 <?php if ($user): ?>
-<!-- MODAL ADJUNTAR DOCUMENTO OFICIAL -->
+
+    <!-- DOCUMENTOS OFICIALES -->
+    <div class="section-card">
+        <div class="section-header">
+            <span><i class="bi bi-file-earmark-text me-2 text-primary"></i> DOCUMENTOS OFICIALES</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalDocumento">
+                <i class="bi bi-paperclip me-1"></i> Adjuntar
+            </button>
+        </div>
+        <div class="section-body p-0">
+            <div class="table-responsive mb-0">
+                <table class="table table-bordered table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Descripción del Documento</th>
+                            <th class="text-center" style="width: 160px;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($documents)): ?>
+                            <?php foreach ($documents as $doc): ?>
+                                <tr>
+                                    <td><?= htmlspecialchars($doc['description']) ?></td>
+                                    <td class="text-center">
+                                        <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" target="_blank" class="btn btn-sm btn-link text-primary p-1" title="Ver"><i class="bi bi-eye fs-5"></i></a>
+                                        <a href="<?= BASE_URL . '/' . $doc['file_path'] ?>" download class="btn btn-sm btn-link text-success p-1" title="Descargar"><i class="bi bi-download fs-5"></i></a>
+                                        <form method="POST" action="<?= BASE_URL ?>/users/delete-document/<?= $doc['id'] ?>" class="d-inline" onsubmit="return confirm('¿Está segura de eliminar este documento?')">
+                                            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar"><i class="bi bi-trash fs-5"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="2" class="text-center text-muted py-3">No hay documentos adjuntos.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- HISTORIAL DE CAPACITACIONES -->
+    <div class="section-card">
+        <div class="section-header">
+            <span><i class="bi bi-easel me-2 text-primary"></i> HISTORIAL DE CAPACITACIONES</span>
+            <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAsignarCapacitacion">
+                <i class="bi bi-plus-lg me-1"></i> Asignar Capacitación
+            </button>
+        </div>
+        <div class="section-body p-0">
+            <div class="table-responsive mb-0">
+                <table class="table table-bordered table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Capacitación</th>
+                            <th class="text-center" style="width: 150px;">Tipo</th>
+                            <th class="text-center" style="width: 130px;">Fecha</th>
+                            <th class="text-center" style="width: 130px;">Duración (hrs)</th>
+                            <th class="text-center" style="width: 200px;">Adjuntos / Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($userTrainings)): ?>
+                            <?php foreach ($userTrainings as $ut): ?>
+                                <tr>
+                                    <td class="fw-semibold text-dark"><?= htmlspecialchars($ut['title']) ?></td>
+                                    <td class="text-center"><span class="badge bg-secondary"><?= htmlspecialchars($ut['type']) ?></span></td>
+                                    <td class="text-center"><?= date('d/m/Y', strtotime($ut['training_date'])) ?></td>
+                                    <td class="text-center"><?= htmlspecialchars($ut['duration_hours'] ?: 'N/A') ?></td>
+                                    <td class="text-center">
+                                        <?php if (!empty($ut['attachment_path'])): ?>
+                                            <a href="<?= BASE_URL ?>/uploads/trainings/<?= htmlspecialchars($ut['attachment_path']) ?>" target="_blank" class="btn btn-sm btn-link text-primary p-1" title="Ver"><i class="bi bi-eye fs-5"></i></a>
+                                            <a href="<?= BASE_URL ?>/uploads/trainings/<?= htmlspecialchars($ut['attachment_path']) ?>" download class="btn btn-sm btn-link text-success p-1" title="Descargar"><i class="bi bi-download fs-5"></i></a>
+                                        <?php endif; ?>
+                                        <button type="button" class="btn btn-sm btn-link text-info p-1" title="Adjuntar" onclick="openUploadModal(<?= $ut['user_training_id'] ?>)"><i class="bi bi-paperclip fs-5"></i></button>
+                                        <form method="POST" action="<?= BASE_URL ?>/users/delete-training" class="d-inline" onsubmit="return confirm('¿Quitar esta capacitación del colaborador?')">
+                                            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                                            <input type="hidden" name="user_training_id" value="<?= $ut['user_training_id'] ?>">
+                                            <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar"><i class="bi bi-trash fs-5"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">No hay capacitaciones asignadas.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- INFORMACIÓN ADICIONAL -->
+    <div class="section-card">
+        <div class="section-header">
+            <span><i class="bi bi-info-circle me-2 text-primary"></i> INFORMACIÓN ADICIONAL</span>
+        </div>
+        <div class="section-body">
+            <div class="table-responsive mb-3">
+                <table class="table table-bordered align-middle mb-0">
+                    <thead class="table-light">
+                        <tr class="text-center">
+                            <th style="width: 30%;">Fecha</th>
+                            <th style="width: 65%;">Descripción de lo Sucedido</th>
+                            <th style="width: 5%;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <input type="date" id="additional_date" class="form-control form-control-sm text-center">
+                            </td>
+                            <td>
+                                <input type="text" id="additional_description" class="form-control form-control-sm" placeholder="Descripción de lo sucedido...">
+                            </td>
+                            <td class="text-center">
+                                <button type="button" id="btnAddAdditional" class="btn btn-primary btn-sm" title="Agregar información adicional">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-responsive mb-0">
+                <table class="table table-bordered table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 20%;" class="text-center">Fecha</th>
+                            <th style="width: 55%;">Descripción de lo Sucedido</th>
+                            <th style="width: 25%;" class="text-center">Adjuntos / Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($additionalInfos)): ?>
+                            <?php foreach ($additionalInfos as $info): ?>
+                                <tr>
+                                    <td class="text-center"><?= !empty($info['info_date']) ? date('d/m/Y', strtotime($info['info_date'])) : '' ?></td>
+                                    <td><?= htmlspecialchars($info['description'] ?? '') ?></td>
+                                    <td class="text-center">
+                                        <?php if (!empty($info['attachment_path'])): ?>
+                                            <a href="<?= BASE_URL ?>/uploads/additionals/<?= htmlspecialchars($info['attachment_path']) ?>" target="_blank" class="btn btn-sm btn-link text-primary p-1" title="Ver"><i class="bi bi-eye fs-5"></i></a>
+                                            <a href="<?= BASE_URL ?>/uploads/additionals/<?= htmlspecialchars($info['attachment_path']) ?>" download class="btn btn-sm btn-link text-success p-1" title="Descargar"><i class="bi bi-download fs-5"></i></a>
+                                        <?php endif; ?>
+                                        <button type="button" class="btn btn-sm btn-link text-info p-1" title="Adjuntar" onclick="openAdditionalUploadModal(<?= $info['id'] ?>)"><i class="bi bi-paperclip fs-5"></i></button>
+                                        <form method="POST" action="<?= BASE_URL ?>/users/delete-additional-info/<?= $info['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar registro?')">
+                                            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar"><i class="bi bi-trash fs-5"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="3" class="text-center text-muted py-3">No hay información adicional registrada.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TRAYECTORIA -->
+    <div class="section-card">
+        <div class="section-header">
+            <span><i class="bi bi-signpost-split me-2 text-primary"></i> TRAYECTORIA</span>
+        </div>
+        <div class="section-body">
+            <div class="table-responsive mb-3">
+                <table class="table table-bordered align-middle mb-0">
+                    <thead class="table-light">
+                        <tr class="text-center">
+                            <th style="width: 25%;">Movimiento</th>
+                            <th style="width: 20%;">Fecha</th>
+                            <th style="width: 20%;">Recontratable</th>
+                            <th style="width: 30%;">Observaciones</th>
+                            <th style="width: 5%;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <select id="trayect_movement" class="form-select form-select-sm">
+                                    <option value="Ingreso">Ingreso</option>
+                                    <option value="Baja">Baja</option>
+                                    <option value="Re-ingreso">Re-ingreso</option>
+                                </select>
+                            </td>
+                            <td>
+                                <input type="date" id="trayect_date" class="form-control form-control-sm text-center">
+                            </td>
+                            <td>
+                                <select id="trayect_rehireable" class="form-select form-select-sm text-center">
+                                    <option value="Si">Sí</option>
+                                    <option value="No">No</option>
+                                </select>
+                            </td>
+                            <td>
+                                <input type="text" id="trayect_notes" class="form-control form-control-sm" placeholder="Observaciones...">
+                            </td>
+                            <td class="text-center">
+                                <button type="button" id="btnAddTrayectoria" class="btn btn-primary btn-sm" title="Agregar trayectoria">
+                                    <i class="bi bi-plus-lg"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="table-responsive mb-0">
+                <table class="table table-bordered table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 25%;">Movimiento</th>
+                            <th style="width: 20%;" class="text-center">Fecha</th>
+                            <th style="width: 15%;" class="text-center">Recontratable</th>
+                            <th style="width: 30%;">Observaciones</th>
+                            <th style="width: 10%;" class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($trajectories)): ?>
+                            <?php foreach ($trajectories as $tray): ?>
+                                <tr>
+                                    <td class="fw-semibold"><?= htmlspecialchars($tray['movement'] ?? '') ?></td>
+                                    <td class="text-center"><?= !empty($tray['movement_date']) ? date('d/m/Y', strtotime($tray['movement_date'])) : '' ?></td>
+                                    <td class="text-center">
+                                        <?php 
+                                            $rehireVal = trim($tray['rehireable'] ?? '');
+                                            $isYes = (strcasecmp($rehireVal, 'Si') === 0 || strcasecmp($rehireVal, 'Sí') === 0 || strcasecmp($rehireVal, 'SI') === 0 || $rehireVal === '1');
+                                        ?>
+                                        <span class="badge <?= $isYes ? 'bg-success' : 'bg-danger' ?>"><?= htmlspecialchars($tray['rehireable'] ?? '') ?></span>
+                                    </td>
+                                    <td><?= htmlspecialchars($tray['notes'] ?? '') ?></td>
+                                    <td class="text-center">
+                                        <form method="POST" action="<?= BASE_URL ?>/users/delete-trajectory/<?= $tray['id'] ?>" class="d-inline" onsubmit="return confirm('¿Eliminar registro de trayectoria?')">
+                                            <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
+                                            <button type="submit" class="btn btn-sm btn-link text-danger p-1" title="Eliminar"><i class="bi bi-trash fs-5"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-3">No hay movimientos de trayectoria registrados.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+<?php endif; ?>
+
+<!-- MODALES -->
+<?php if ($user): ?>
 <div class="modal fade" id="modalDocumento" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <form action="<?= BASE_URL ?>/users/upload-document" method="POST" enctype="multipart/form-data" class="modal-content">
@@ -679,7 +615,6 @@ $old = $oldInput ?? [];
     </div>
 </div>
 
-<!-- MODAL ASIGNAR O CREAR CAPACITACIÓN -->
 <div class="modal fade" id="modalAsignarCapacitacion" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
@@ -688,7 +623,6 @@ $old = $oldInput ?? [];
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body p-4">
-                <!-- Pestañas del Modal -->
                 <ul class="nav nav-pills mb-3" id="trainingTabs" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="select-tab" data-bs-toggle="pill" data-bs-target="#tab-select" type="button" role="tab">Seleccionar Existente</button>
@@ -699,26 +633,21 @@ $old = $oldInput ?? [];
                 </ul>
 
                 <div class="tab-content" id="trainingTabsContent">
-                    <!-- Tab 1: Seleccionar Existente -->
                     <div class="tab-pane fade show active" id="tab-select" role="tabpanel">
                         <form action="<?= BASE_URL ?>/users/add-training" method="POST">
                             <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                             <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
-
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Seleccionar Capacitación del Catálogo</label>
                                 <select name="training_id" class="form-select" required>
                                     <option value="">-- Seleccionar Capacitación --</option>
                                     <?php if (!empty($allTrainings)): ?>
                                         <?php foreach ($allTrainings as $tr): ?>
-                                            <option value="<?= $tr['id'] ?>">
-                                                <?= htmlspecialchars($tr['title']) ?> (<?= date('d/m/Y', strtotime($tr['training_date'])) ?>)
-                                            </option>
+                                            <option value="<?= $tr['id'] ?>"><?= htmlspecialchars($tr['title']) ?> (<?= date('d/m/Y', strtotime($tr['training_date'])) ?>)</option>
                                         <?php endforeach; ?>
                                     <?php endif; ?>
                                 </select>
                             </div>
-
                             <div class="text-end mt-4">
                                 <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
                                 <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg me-1"></i> Asignar Seleccionada</button>
@@ -726,17 +655,14 @@ $old = $oldInput ?? [];
                         </form>
                     </div>
 
-                    <!-- Tab 2: Crear Nueva Capacitación y Asignar -->
                     <div class="tab-pane fade" id="tab-create" role="tabpanel">
                         <form action="<?= BASE_URL ?>/users/create-and-assign-training" method="POST" enctype="multipart/form-data">
                             <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
                             <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
-
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Nombre de la Capacitación / Curso <span class="text-danger">*</span></label>
                                 <input type="text" name="title" class="form-control" required placeholder="Ej. Curso Primeros Auxilios">
                             </div>
-
                             <div class="row g-3 mb-3">
                                 <div class="col-md-6">
                                     <label class="form-label fw-semibold">Tipo <span class="text-danger">*</span></label>
@@ -757,12 +683,10 @@ $old = $oldInput ?? [];
                                     <input type="text" name="duration_hours" class="form-control" placeholder="Ej. 8 hrs">
                                 </div>
                             </div>
-
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Comprobante / Documento Adjunto (Opcional)</label>
                                 <input type="file" name="attachment" class="form-control" accept=".pdf,.jpg,.jpeg,.png">
                             </div>
-
                             <div class="text-end mt-4">
                                 <button type="button" class="btn btn-light border" data-bs-dismiss="modal">Cancelar</button>
                                 <button type="submit" class="btn btn-success"><i class="bi bi-plus-circle me-1"></i> Crear y Asignar</button>
@@ -775,7 +699,6 @@ $old = $oldInput ?? [];
     </div>
 </div>
 
-<!-- MODAL ADJUNTAR COMPROBANTE DE CAPACITACIÓN -->
 <div class="modal fade" id="modalUploadTrainingDoc" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <form action="<?= BASE_URL ?>/users/upload-training-attachment" method="POST" enctype="multipart/form-data" class="modal-content">
@@ -800,7 +723,6 @@ $old = $oldInput ?? [];
     </div>
 </div>
 
-<!-- MODAL ADJUNTAR COMPROBANTE DE INFORMACIÓN ADICIONAL -->
 <div class="modal fade" id="modalUploadAdditionalDoc" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
         <form action="<?= BASE_URL ?>/users/upload-additional-info-attachment" method="POST" enctype="multipart/form-data" class="modal-content">
@@ -839,17 +761,6 @@ function openAdditionalUploadModal(additionalInfoId) {
     modal.show();
 }
 
-function checkAdditionalDesc(select) {
-    const input = document.getElementById('additional_description_input');
-    if (select.value === 'Otro') {
-        input.style.display = 'block';
-        input.focus();
-    } else {
-        input.style.display = 'none';
-        input.value = '';
-    }
-}
-
 function togglePassword() {
     const pwd = document.getElementById('pwdInput');
     pwd.type = pwd.type === 'password' ? 'text' : 'password';
@@ -867,7 +778,6 @@ function checkRole() {
 checkRole();
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Inicializar Tooltips de Bootstrap
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
@@ -925,7 +835,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // --- AUTOCOMPLETAR FECHA DE NACIMIENTO DESDE LA CURP O EDICIÓN MANUAL ---
+    // --- AUTOCOMPLETAR FECHA DE NACIMIENTO DESDE LA CURP ---
     const curpInput = document.getElementById('curpInput');
     const birthDateInput = document.getElementById('birthDateInput');
 
@@ -948,7 +858,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 birthDateInput.classList.remove('bg-light');
             }
         }
-
         curpInput.addEventListener('input', updateBirthDateFromCURP);
         updateBirthDateFromCURP();
     }
@@ -959,15 +868,10 @@ document.addEventListener('DOMContentLoaded', function() {
         btnAddAdditional.addEventListener('click', function() {
             const userId = document.getElementById('user_id').value;
             const infoDate = document.getElementById('additional_date').value;
-            const selectVal = document.getElementById('additional_description_select').value;
-            
-            let description = selectVal;
-            if (selectVal === 'Otro') {
-                description = document.getElementById('additional_description_input').value.trim();
-            }
+            const description = document.getElementById('additional_description').value.trim();
 
             if (!infoDate || !description) {
-                alert('Por favor ingresa la fecha y especifica la descripción.');
+                alert('Por favor ingresa la fecha y la descripción.');
                 return;
             }
 

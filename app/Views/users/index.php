@@ -7,26 +7,39 @@
     </a>
 </div>
 
-<!-- Filtros por Estatus y Búsqueda -->
+<!-- Filtros por Estatus, Búsqueda y Paginación -->
 <div class="card border-0 shadow-sm mb-3">
     <div class="card-body">
         <form method="GET" action="<?= BASE_URL ?>/users" class="row g-2 align-items-center">
             <div class="col-md-3">
                 <select name="status" class="form-select" onchange="this.form.submit()">
                     <option value="">-- Todos los estatus --</option>
-                    <option value="active" <?= (($_GET['status'] ?? '') === 'active') ? 'selected' : '' ?>>Activos</option>
+                    <option value="active" <?= (($_GET['status'] ?? 'active') === 'active') ? 'selected' : '' ?>>Activos</option>
                     <option value="inactive" <?= (($_GET['status'] ?? '') === 'inactive') ? 'selected' : '' ?>>Inactivos</option>
                 </select>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-4">
                 <div class="input-group">
                     <span class="input-group-text bg-light"><i class="bi bi-search"></i></span>
                     <input type="text" name="q" class="form-control" placeholder="Buscar por nombre, correo, usuario..." value="<?= htmlspecialchars($_GET['q'] ?? '') ?>">
                     <button class="btn btn-primary" type="submit">Buscar</button>
-                    <?php if (!empty($_GET['q']) || !empty($_GET['status'])): ?>
+                    <?php if (!empty($_GET['q']) || (!empty($_GET['status']) && $_GET['status'] !== 'active')): ?>
                         <a href="<?= BASE_URL ?>/users" class="btn btn-outline-secondary">Limpiar</a>
                     <?php endif; ?>
                 </div>
+            </div>
+            <div class="col-md-3 offset-md-2 text-md-end">
+                <label class="small text-muted me-2">Mostrar:</label>
+                <select name="per_page" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+                    <?php 
+                        $currentPerPage = $_GET['per_page'] ?? 10;
+                        $options = [10, 15, 20, 50, 1000];
+                        foreach ($options as $opt):
+                            $label = ($opt >= 1000) ? 'Todos' : $opt;
+                    ?>
+                        <option value="<?= $opt ?>" <?= ($currentPerPage == $opt) ? 'selected' : '' ?>><?= $label ?></option>
+                    <?php endforeach; ?>
+                </select>
             </div>
         </form>
     </div>
@@ -56,7 +69,20 @@
                                 <td class="fw-semibold"><?= htmlspecialchars(($u['first_name'] ?? '') . ' ' . ($u['last_name_paternal'] ?? '')) ?></td>
                                 <td><?= htmlspecialchars($u['username']) ?></td>
                                 <td><?= htmlspecialchars($u['email'] ?? '-') ?></td>
-                                <td><span class="badge bg-secondary"><?= htmlspecialchars($u['role']) ?></span></td>
+                                <td>
+                                    <?php 
+                                        $roleMap = [
+                                            'General Admin' => 'Administrador General',
+                                            'Administrative Reporter' => 'Reportero Administrativo',
+                                            'Operational Reporter' => 'Reportero Operativo',
+                                            'Collaborator' => 'Colaborador',
+                                            'admin' => 'Admin',
+                                            'collaborator' => 'Colaborador'
+                                        ];
+                                        $displayRole = $roleMap[$u['role']] ?? $u['role'];
+                                    ?>
+                                    <span class="badge bg-secondary"><?= htmlspecialchars($displayRole) ?></span>
+                                </td>
                                 <td>
                                     <span class="badge <?= $u['status'] === 'active' ? 'bg-success' : 'bg-danger' ?>">
                                         <?= $u['status'] === 'active' ? 'Activo' : 'Inactivo' ?>
@@ -91,17 +117,17 @@
             <nav aria-label="Navegación de páginas">
                 <ul class="pagination justify-content-center mb-0">
                     <li class="page-item <?= ($page <= 1) ? 'disabled' : '' ?>">
-                        <a class="page-link" href="<?= BASE_URL ?>/users?page=<?= $page - 1 ?>&status=<?= urlencode($statusFilter) ?>&q=<?= urlencode($searchFilter) ?>" tabindex="-1">Anterior</a>
+                        <a class="page-link" href="<?= BASE_URL ?>/users?page=<?= $page - 1 ?>&status=<?= urlencode($statusFilter) ?>&q=<?= urlencode($searchFilter) ?>&per_page=<?= $perPage ?>" tabindex="-1">Anterior</a>
                     </li>
 
                     <?php for ($i = 1; $i <= $totalPages; $i++): ?>
                         <li class="page-item <?= ($page == $i) ? 'active' : '' ?>">
-                            <a class="page-link" href="<?= BASE_URL ?>/users?page=<?= $i ?>&status=<?= urlencode($statusFilter) ?>&q=<?= urlencode($searchFilter) ?>"><?= $i ?></a>
+                            <a class="page-link" href="<?= BASE_URL ?>/users?page=<?= $i ?>&status=<?= urlencode($statusFilter) ?>&q=<?= urlencode($searchFilter) ?>&per_page=<?= $perPage ?>"><?= $i ?></a>
                         </li>
                     <?php endfor; ?>
 
                     <li class="page-item <?= ($page >= $totalPages) ? 'disabled' : '' ?>">
-                        <a class="page-link" href="<?= BASE_URL ?>/users?page=<?= $page + 1 ?>&status=<?= urlencode($statusFilter) ?>&q=<?= urlencode($searchFilter) ?>">Siguiente</a>
+                        <a class="page-link" href="<?= BASE_URL ?>/users?page=<?= $page + 1 ?>&status=<?= urlencode($statusFilter) ?>&q=<?= urlencode($searchFilter) ?>&per_page=<?= $perPage ?>">Siguiente</a>
                     </li>
                 </ul>
             </nav>
