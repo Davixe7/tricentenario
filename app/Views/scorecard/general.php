@@ -184,8 +184,13 @@
                     <span class="fs-6 fw-bold text-dark"><?= number_format($summaryData['avg_eval_360'] ?? 0, 1) ?>%</span>
                 </div>
                 <div class="text-center">
+                    <?php 
+                        $projectVal = ($semesterNum === '2') 
+                            ? ($summaryData['total_semester_project_2'] ?? 0) 
+                            : ($summaryData['total_semester_project_1'] ?? 0);
+                    ?>
                     <span class="small text-muted d-block">Proyecto Semestre <?= $semesterNum ?></span>
-                    <span class="fs-6 fw-bold text-dark">$<?= number_format($summaryData['total_semester_project_1'] ?? 0, 2) ?></span>
+                    <span class="fs-6 fw-bold text-dark">$<?= number_format($projectVal, 2) ?></span>
                 </div>
             </div>
         </div>

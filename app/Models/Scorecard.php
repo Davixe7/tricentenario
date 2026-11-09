@@ -22,12 +22,15 @@ class Scorecard {
 
     public function getSemesterSummary($semester) {
         $sql = "SELECT 
+                AVG(sales) as avg_sales,
+                AVG(performance) as avg_performance,
+                SUM(incidents) as total_incidents,
                 SUM(centenarios_received) as total_centenarios_received,
                 SUM(centenarios_redeemed) as total_centenarios_redeemed,
                 SUM(redemption_amount) as total_redemption_amount,
                 AVG(eval_360) as avg_eval_360,
-                AVG(performance) as avg_performance,
-                SUM(semester_project_1) as total_semester_project_1
+                SUM(semester_project_1) as total_semester_project_1,
+                SUM(semester_project_2) as total_semester_project_2
                 FROM monthly_scorecards WHERE semester = :semester";
         
         $stmt = $this->db->prepare($sql);
@@ -35,12 +38,15 @@ class Scorecard {
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return $result ?: [
+            'avg_sales' => 0,
+            'avg_performance' => 0,
+            'total_incidents' => 0,
             'total_centenarios_received' => 0,
             'total_centenarios_redeemed' => 0,
             'total_redemption_amount' => 0,
             'avg_eval_360' => 0,
-            'avg_performance' => 0,
-            'total_semester_project_1' => 0
+            'total_semester_project_1' => 0,
+            'total_semester_project_2' => 0
         ];
     }
 
@@ -62,12 +68,15 @@ class Scorecard {
 
     public function getUserSemesterSummary($userId, $semester) {
         $sql = "SELECT 
+                AVG(sales) as avg_sales,
+                AVG(performance) as avg_performance,
+                SUM(incidents) as total_incidents,
                 SUM(centenarios_received) as total_centenarios_received,
                 SUM(centenarios_redeemed) as total_centenarios_redeemed,
                 SUM(redemption_amount) as total_redemption_amount,
                 AVG(eval_360) as avg_eval_360,
-                AVG(performance) as avg_performance,
-                SUM(semester_project_1) as total_semester_project_1
+                SUM(semester_project_1) as total_semester_project_1,
+                SUM(semester_project_2) as total_semester_project_2
                 FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester";
 
         $stmt = $this->db->prepare($sql);
@@ -78,12 +87,15 @@ class Scorecard {
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
 
         return $result ?: [
+            'avg_sales' => 0,
+            'avg_performance' => 0,
+            'total_incidents' => 0,
             'total_centenarios_received' => 0,
             'total_centenarios_redeemed' => 0,
             'total_redemption_amount' => 0,
             'avg_eval_360' => 0,
-            'avg_performance' => 0,
-            'total_semester_project_1' => 0
+            'total_semester_project_1' => 0,
+            'total_semester_project_2' => 0
         ];
     }
 
@@ -95,7 +107,6 @@ class Scorecard {
     }
 
     public function saveSemesterFinals($userId, $semester, $data) {
-        // Limpieza de caracteres de formato ($, %, comas y espacios)
         $cleanNum = function($val) {
             if ($val === null || $val === '') return 0;
             $val = str_replace(['$', '%', ',', ' '], '', (string)$val);

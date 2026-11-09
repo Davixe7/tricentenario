@@ -47,7 +47,6 @@ class ScorecardController {
     public function individuals() {
         $db = Database::getInstance();
 
-        // Procesar guardado vía POST al presionar el botón "Guardar"
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!CSRF::validateToken($_POST['csrf_token'] ?? '')) {
                 die('Invalid CSRF Token');
@@ -103,7 +102,6 @@ class ScorecardController {
             }
         }
 
-        // Filtro de Estatus y Paginación (Soporta 5, 10, 15, 25, 50, all)
         $statusFilter = $_GET['status'] ?? 'active';
         $limitRaw = $_GET['limit'] ?? '50';
         $allowedLimits = ['5', '10', '15', '25', '50', 'all'];
@@ -123,7 +121,6 @@ class ScorecardController {
             $offset = ($page - 1) * $sqlLimit;
         }
 
-        // Consulta de despachadores
         $sqlWhere = " WHERE p.name LIKE :position_name";
         $params = [':position_name' => '%Despachador%'];
 

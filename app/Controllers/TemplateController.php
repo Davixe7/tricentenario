@@ -198,6 +198,9 @@ class TemplateController {
         $validRowCount = 0;
         $monthlyGlobalAccumulator = [];
         $individualRecords = [];
+        $eval360Accumulator = [];
+        $projectSemesterAccumulator = [];
+        $bitacoraIncidentsByUserMonth = [];
 
         $currentYear = '2026';
         if (preg_match('/(20\d{2})/', $originalName, $match)) {
@@ -211,13 +214,75 @@ class TemplateController {
             'JULIO' => 7, 'AGOSTO' => 8, 'SEPTIEMBRE' => 9, 'OCTUBRE' => 10, 'NOVIEMBRE' => 11, 'DICIEMBRE' => 12
         ];
 
-        // Mapear los números de empleado existentes en la base de datos
         $db = Database::getInstance();
+        
+        $stmtPos = $db->query("SELECT id FROM positions WHERE name LIKE '%Despachador%' LIMIT 1");
+        $posRow = $stmtPos->fetch(PDO::FETCH_ASSOC);
+        $despachadorPositionId = $posRow ? (int)$posRow['id'] : 1;
+
         $userMap = [];
-        $stmtUsers = $db->query("SELECT id, employee_number FROM users WHERE employee_number IS NOT NULL");
+        $userNameMap = [];
+        $stmtUsers = $db->query("SELECT id, employee_number, first_name, last_name_paternal, last_name_maternal FROM users");
         while ($uRow = $stmtUsers->fetch(PDO::FETCH_ASSOC)) {
-            $userMap[(int)$uRow['employee_number']] = (int)$uRow['id'];
+            if (!empty($uRow['employee_number'])) {
+                $userMap[(int)$uRow['employee_number']] = (int)$uRow['id'];
+            }
+            $fullNameKey = strtolower(trim($uRow['first_name'] . ' ' . $uRow['last_name_paternal'] . ' ' . ($uRow['last_name_maternal'] ?? '')));
+            $userNameMap[$fullNameKey] = (int)$uRow['id'];
+            $shortNameKey = strtolower(trim($uRow['first_name'] . ' ' . $uRow['last_name_paternal']));
+            $userNameMap[$shortNameKey] = (int)$uRow['id'];
         }
+
+        // Helper para resolver o crear usuario capitalizando el nombre completo
+        $resolveOrCreateUser = function($empNum, $rawEmployeeName) use ($db, $despachadorPositionId, &$userMap, &$userNameMap) {
+            $matchedUserId = $userMap[$empNum] ?? null;
+
+            if (!$matchedUserId && !empty($rawEmployeeName)) {
+                $normExcelName = strtolower(preg_replace('/\s+/', ' ', trim($rawEmployeeName)));
+                if (isset($userNameMap[$normExcelName])) {
+                    $matchedUserId = $userNameMap[$normExcelName];
+                } else {
+                    foreach ($userNameMap as $dbName => $dbId) {
+                        if ($dbName === $normExcelName || str_contains($normExcelName, $dbName) || str_contains($dbName, $normExcelName)) {
+                            $matchedUserId = $dbId;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!$matchedUserId && !empty($rawEmployeeName)) {
+                $cleanFullName = ucwords(strtolower(preg_replace('/\s+/', ' ', trim($rawEmployeeName))));
+                $nameParts = explode(' ', $cleanFullName);
+                
+                $firstName = $nameParts[0] ?? 'Despachador';
+                $lastNamePaternal = $nameParts[1] ?? 'Nuevo';
+                $lastNameMaternal = isset($nameParts[2]) ? implode(' ', array_slice($nameParts, 2)) : '';
+                
+                $generatedUsername = strtolower($firstName . ($empNum > 0 ? $empNum : rand(100, 999)));
+
+                $insertUserSql = "INSERT INTO users (employee_number, first_name, last_name_paternal, last_name_maternal, username, password, role, area_id, position_id, status) 
+                                  VALUES (:emp_num, :fname, :lname_pat, :lname_mat, :uname, :pwd, 'Collaborator', 1, :pos_id, 'active')";
+                $stmtInsUser = $db->prepare($insertUserSql);
+                $stmtInsUser->execute([
+                    ':emp_num' => $empNum > 0 ? $empNum : null,
+                    ':fname' => $firstName,
+                    ':lname_pat' => $lastNamePaternal,
+                    ':lname_mat' => $lastNameMaternal,
+                    ':uname' => $generatedUsername,
+                    ':pwd' => password_hash('password123', PASSWORD_BCRYPT),
+                    ':pos_id' => $despachadorPositionId
+                ]);
+                
+                $matchedUserId = (int)$db->lastInsertId();
+                if ($empNum > 0) {
+                    $userMap[$empNum] = $matchedUserId;
+                }
+                $userNameMap[strtolower(trim($cleanFullName))] = $matchedUserId;
+            }
+
+            return $matchedUserId;
+        };
 
         for ($i = 1; $i < count($rows); $i++) {
             $row = $rows[$i];
@@ -252,38 +317,68 @@ class TemplateController {
 
                 $semesterKey = ($monthIndex <= 6 ? '1' : '2') . '-' . $currentYear;
                 $empNum = intval($rowData['# EMPLEADO'] ?? 0);
-                $matchedUserId = $userMap[$empNum] ?? null;
+                $rawEmployeeName = trim($rowData['NOMBRE'] ?? '');
 
-                // 1. Acumulador Global (para la boleta general)
+                $matchedUserId = $resolveOrCreateUser($empNum, $rawEmployeeName);
+
                 if (!isset($monthlyGlobalAccumulator[$semesterKey][$monthName])) {
                     $monthlyGlobalAccumulator[$semesterKey][$monthName] = [
                         'month_index' => $monthIndex,
                         'sales_sum' => 0, 'sales_count' => 0,
+                        'performance_sum' => 0, 'performance_count' => 0,
                         'steps_sum' => 0, 'steps_count' => 0,
                         'habits_sum' => 0, 'habits_count' => 0,
                         'bonus_sum' => 0, 'bonus_count' => 0,
-                        'oils' => 0, 'wrong_loadings' => 0, 'client_complaints' => 0,
+                        'oils' => 0, 'incidents' => 0, 'wrong_loadings' => 0, 'client_complaints' => 0,
                         'wrong_charges' => 0, 'invoices' => 0, 'absences' => 0,
                         'centenarios_received' => 0, 'centenarios_redeemed' => 0, 'redemption_amount' => 0
                     ];
                 }
 
                 $mAcc = &$monthlyGlobalAccumulator[$semesterKey][$monthName];
+                
                 $litros = floatval($rowData['LITROS'] ?? 0);
+                $dias = max(1, intval($rowData['DIAS'] ?? 1));
                 $meta = floatval($rowData['META'] ?? 2500);
-                $ventasPct = $meta > 0 ? (($litros / $meta) * 100) : 0;
+                
+                $promedioDiario = $litros / $dias;
+                $ventasPct = $meta > 0 ? (($promedioDiario / $meta) * 100) : 0;
+                if ($ventasPct > 999.99) $ventasPct = 999.99;
+
+                $aceitesCount = intval($rowData['ACEITES'] ?? 0);
+                $aceitesPct = ($dias > 0) ? (($aceitesCount / ($dias * 2)) * 100) : 0;
+                if ($aceitesPct > 100.0) $aceitesPct = 100.0;
+
+                $numIncidencias = intval($rowData['INCIDENCIAS'] ?? 0);
+                if ($matchedUserId && isset($bitacoraIncidentsByUserMonth[$matchedUserId][$monthName])) {
+                    $numIncidencias = $bitacoraIncidentsByUserMonth[$matchedUserId][$monthName];
+                }
+
+                if ($numIncidencias === 0) $incidenciasPct = 100.0;
+                elseif ($numIncidencias === 1) $incidenciasPct = 90.0;
+                elseif ($numIncidencias === 2) $incidenciasPct = 80.0;
+                elseif ($numIncidencias === 3) $incidenciasPct = 70.0;
+                elseif ($numIncidencias === 4) $incidenciasPct = 60.0;
+                else $incidenciasPct = 0.0;
+
+                $stepVal = floatval($rowData['6 PASOS'] ?? 0);
+                if ($stepVal <= 1.0 && $stepVal > 0) $stepVal = $stepVal * 100;
+
+                $perfVal = ($ventasPct * 0.7) + ($aceitesPct * 0.15) + ($incidenciasPct * 0.1) + ($stepVal * 0.05);
+                if ($perfVal > 999.99) $perfVal = 999.99;
 
                 $mAcc['sales_sum'] += $ventasPct;
                 $mAcc['sales_count']++;
-                $mAcc['oils'] += intval($rowData['ACEITES'] ?? 0);
+                $mAcc['performance_sum'] += $perfVal;
+                $mAcc['performance_count']++;
+                $mAcc['oils'] += $aceitesCount;
+                $mAcc['incidents'] += $numIncidencias;
 
-                $stepVal = floatval($rowData['6 PASOS'] ?? 0);
-                if ($stepVal > 0 && $stepVal <= 1) $stepVal *= 100;
                 $mAcc['steps_sum'] += $stepVal;
                 $mAcc['steps_count']++;
 
                 $habitVal = floatval($rowData['ASISTENCIA HÁBITOS'] ?? 0);
-                if ($habitVal > 0 && $habitVal <= 1) $habitVal *= 100;
+                if ($habitVal <= 1.0 && $habitVal > 0) $habitVal = $habitVal * 100;
                 $mAcc['habits_sum'] += $habitVal;
                 $mAcc['habits_count']++;
 
@@ -293,7 +388,7 @@ class TemplateController {
                 $mAcc['invoices'] += intval($rowData['FACTURAS'] ?? 0);
 
                 $bonusVal = floatval($rowData['BONO PRODUCTIVIDAD'] ?? 0);
-                if ($bonusVal > 0 && $bonusVal <= 1) $bonusVal *= 100;
+                if ($bonusVal <= 1.0 && $bonusVal > 0) $bonusVal = $bonusVal * 100;
                 $mAcc['bonus_sum'] += $bonusVal;
                 $mAcc['bonus_count']++;
 
@@ -302,31 +397,19 @@ class TemplateController {
                 $mAcc['centenarios_redeemed'] += intval($rowData['CENTENARIOS OTORGADOS'] ?? 0);
                 $mAcc['redemption_amount'] += floatval($rowData['IMPORTE CANJE'] ?? 0);
 
-                // 2. Registro Individual (si el empleado existe en la BD)
                 if ($matchedUserId) {
-                    $indSales = $ventasPct;
-                    if ($indSales > 999.99) $indSales = 999.99;
-
-                    $indStep = floatval($rowData['6 PASOS'] ?? 0);
-                    if ($indStep > 0 && $indStep <= 1) $indStep *= 100;
-
-                    $indHabit = floatval($rowData['ASISTENCIA HÁBITOS'] ?? 0);
-                    if ($indHabit > 0 && $indHabit <= 1) $indHabit *= 100;
-
-                    $indBonus = floatval($rowData['BONO PRODUCTIVIDAD'] ?? 0);
-                    if ($indBonus > 0 && $indBonus <= 1) $indBonus *= 100;
-
                     $individualRecords[] = [
                         'semester' => $semesterKey,
                         'month_name' => $monthName,
                         'month_index' => $monthIndex,
                         'user_id' => $matchedUserId,
-                        'sales' => $indSales,
-                        'performance' => $indSales,
-                        'attendance_habits' => $indHabit,
-                        'six_steps' => $indStep,
-                        'productivity_bonus' => $indBonus,
-                        'oils' => intval($rowData['ACEITES'] ?? 0),
+                        'sales' => $ventasPct,
+                        'performance' => $perfVal,
+                        'attendance_habits' => $habitVal,
+                        'six_steps' => $stepVal,
+                        'productivity_bonus' => $bonusVal,
+                        'oils' => $aceitesCount,
+                        'incidents' => $numIncidencias,
                         'wrong_loadings' => intval($rowData['CARGAS EQUIVOCADAS'] ?? 0),
                         'client_complaints' => intval($rowData['QUEJAS DEL CLIENTE'] ?? 0),
                         'wrong_charges' => intval($rowData['COBROS EQUIVOCADOS'] ?? 0),
@@ -338,42 +421,102 @@ class TemplateController {
                     ];
                 }
             }
-        }
+            elseif ($templateKey === 'bitacora_incidencias') {
+                $rawMonthName = strtoupper(trim($rowData['MES'] ?? $rowData['MES INCIDENCIA'] ?? 'ENERO'));
+                $monthIndex = $monthNameToIndex[$rawMonthName] ?? 1;
+                $monthName = ucwords(strtolower($rawMonthName));
+                $semesterKey = ($monthIndex <= 6 ? '1' : '2') . '-' . $currentYear;
+                
+                $empReported = intval($rowData['# EMPLEADO REPORTADO'] ?? $rowData['# EMPLEADO'] ?? 0);
+                $empNameReported = trim($rowData['NOMBRE DEL REPORTADO'] ?? $rowData['NOMBRE'] ?? '');
+                
+                $resolvedId = $resolveOrCreateUser($empReported, $empNameReported);
+                if ($resolvedId) {
+                    $sqlCheckCard = "SELECT id FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
+                    $stmtCheck = $db->prepare($sqlCheckCard);
+                    $stmtCheck->execute([':user_id' => $resolvedId, ':semester' => $semesterKey, ':month_name' => $monthName]);
+                    $existsCard = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
-        // Guardar Totales Globales en monthly_scorecards
-        foreach ($monthlyGlobalAccumulator as $semKey => $monthsArr) {
-            foreach ($monthsArr as $mName => $vals) {
-                $mIdx = $vals['month_index'] ?? 1;
-                $sCount = max(1, $vals['sales_count']);
-                $stCount = max(1, $vals['steps_count']);
-                $hCount = max(1, $vals['habits_count']);
-                $bCount = max(1, $vals['bonus_count']);
+                    if (!$existsCard) {
+                        $sqlInsCard = "INSERT INTO user_monthly_scorecards (user_id, semester, month_name, month_index, incidents) VALUES (:user_id, :semester, :month_name, :month_index, 1)";
+                        $stmtInsCard = $db->prepare($sqlInsCard);
+                        $stmtInsCard->execute([':user_id' => $resolvedId, ':semester' => $semesterKey, ':month_name' => $monthName, ':month_index' => $monthIndex]);
+                    } else {
+                        $sqlUpdInc = "UPDATE user_monthly_scorecards SET incidents = incidents + 1 WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
+                        $stmtUpdInc = $db->prepare($sqlUpdInc);
+                        $stmtUpdInc->execute([':user_id' => $resolvedId, ':semester' => $semesterKey, ':month_name' => $monthName]);
+                    }
+                }
 
-                $salesVal = round($vals['sales_sum'] / $sCount, 2);
-                if ($salesVal > 999.99) $salesVal = 999.99;
+                if (!isset($monthlyGlobalAccumulator[$semesterKey][$monthName])) {
+                    $monthlyGlobalAccumulator[$semesterKey][$monthName] = ['month_index' => $monthIndex, 'incidents' => 0];
+                }
+                $monthlyGlobalAccumulator[$semesterKey][$monthName]['incidents']++;
+            }
+            elseif ($templateKey === 'calificaciones_360') {
+                $empNum = intval($rowData['# EMPLEADO'] ?? 0);
+                $rawEmployeeName = trim($rowData['NOMBRE'] ?? $rowData['EMPLEADO'] ?? '');
+                $score360 = floatval($rowData['CALIFICACIÓN 360º'] ?? $rowData['CALIFICACION 360'] ?? $rowData['CALIFICACION'] ?? $rowData['EVAL_360'] ?? 0);
+                if ($score360 <= 1.0 && $score360 > 0) $score360 = $score360 * 100;
+                
+                $matchedUserId = $resolveOrCreateUser($empNum, $rawEmployeeName);
 
-                $dataToSave = [
-                    'sales' => $salesVal,
-                    'performance' => $salesVal,
-                    'attendance_habits' => round($vals['habits_sum'] / $hCount, 2),
-                    'six_steps' => round($vals['steps_sum'] / $stCount, 2),
-                    'productivity_bonus' => round($vals['bonus_sum'] / $bCount, 2),
-                    'oils' => $vals['oils'],
-                    'wrong_loadings' => $vals['wrong_loadings'],
-                    'client_complaints' => $vals['client_complaints'],
-                    'wrong_charges' => $vals['wrong_charges'],
-                    'invoices' => $vals['invoices'],
-                    'absences' => $vals['absences'],
-                    'centenarios_received' => $vals['centenarios_received'],
-                    'centenarios_redeemed' => $vals['centenarios_redeemed'],
-                    'redemption_amount' => $vals['redemption_amount']
-                ];
+                if ($matchedUserId && $score360 > 0) {
+                    $semMonths = ($semesterNum === '2') ? ['Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'] : ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'];
+                    foreach ($semMonths as $mName) {
+                        $mIdx = $monthNameToIndex[strtoupper($mName)] ?? 1;
+                        $sqlCheckCard = "SELECT id FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
+                        $stmtCheck = $db->prepare($sqlCheckCard);
+                        $stmtCheck->execute([':user_id' => $matchedUserId, ':semester' => $semesterNum . '-' . $currentYear, ':month_name' => $mName]);
+                        $existsCard = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
-                $this->templateModel->updateMonthlyScorecardFromData($semKey, $mName, $mIdx, $dataToSave);
+                        if (!$existsCard) {
+                            $sqlInsCard = "INSERT INTO user_monthly_scorecards (user_id, semester, month_name, month_index, eval_360) VALUES (:user_id, :semester, :month_name, :month_index, :eval_360)";
+                            $stmtInsCard = $db->prepare($sqlInsCard);
+                            $stmtInsCard->execute([
+                                ':user_id' => $matchedUserId,
+                                ':semester' => $semesterNum . '-' . $currentYear,
+                                ':month_name' => $mName,
+                                ':month_index' => $mIdx,
+                                ':eval_360' => $score360
+                            ]);
+                        } else {
+                            $sqlUpd360 = "UPDATE user_monthly_scorecards SET eval_360 = :eval_360 WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
+                            $stmtU360 = $db->prepare($sqlUpd360);
+                            $stmtU360->execute([
+                                ':eval_360' => $score360,
+                                ':user_id' => $matchedUserId,
+                                ':semester' => $semesterNum . '-' . $currentYear,
+                                ':month_name' => $mName
+                            ]);
+                        }
+                    }
+                }
+
+                $semKey = $semesterNum . '-' . $currentYear;
+                if (!isset($eval360Accumulator[$semKey])) {
+                    $eval360Accumulator[$semKey] = ['sum' => 0, 'count' => 0];
+                }
+                if ($score360 > 0) {
+                    $eval360Accumulator[$semKey]['sum'] += $score360;
+                    $eval360Accumulator[$semKey]['count']++;
+                }
+            }
+            elseif ($templateKey === 'proyecto_semestre') {
+                $empNum = intval($rowData['# EMPLEADO'] ?? 0);
+                $rawEmployeeName = trim($rowData['NOMBRE'] ?? $rowData['EMPLEADO'] ?? '');
+                $projVal = floatval($rowData['PROYECTO SEMESTRE 1'] ?? $rowData['PROYECTO SEMESTRE 2'] ?? $rowData['PROYECTO'] ?? $rowData['IMPORTE'] ?? 0);
+                
+                $matchedUserId = $resolveOrCreateUser($empNum, $rawEmployeeName);
+
+                $semKey = $semesterNum . '-' . $currentYear;
+                if (!isset($projectSemesterAccumulator[$semKey])) {
+                    $projectSemesterAccumulator[$semKey] = 0;
+                }
+                $projectSemesterAccumulator[$semKey] += $projVal;
             }
         }
 
-        // Guardar Registros Individuales en user_monthly_scorecards
         foreach ($individualRecords as $ind) {
             $uId = $ind['user_id'];
             $semKey = $ind['semester'];
@@ -382,6 +525,76 @@ class TemplateController {
             unset($ind['user_id'], $ind['semester'], $ind['month_name'], $ind['month_index']);
 
             $this->templateModel->updateUserMonthlyScorecard($semKey, $mName, $mIdx, $uId, $ind);
+        }
+
+        if ($templateKey === 'bitacora_incidencias') {
+            foreach ($monthlyGlobalAccumulator as $semKey => $monthsArr) {
+                foreach ($monthsArr as $mName => $vals) {
+                    $dataToSave = [
+                        'incidents_only' => true,
+                        'incidents' => intval($vals['incidents'] ?? 0)
+                    ];
+                    $this->templateModel->updateMonthlyScorecardFromData($semKey, $mName, $vals['month_index'], $dataToSave);
+                }
+            }
+        } else {
+            foreach ($monthlyGlobalAccumulator as $semKey => $monthsArr) {
+                foreach ($monthsArr as $mName => $vals) {
+                    $mIdx = $vals['month_index'] ?? 1;
+                    $sCount = max(1, $vals['sales_count'] ?? 1);
+                    $pCount = max(1, $vals['performance_count'] ?? 1);
+                    $stCount = max(1, $vals['steps_count'] ?? 1);
+                    $hCount = max(1, $vals['habits_count'] ?? 1);
+                    $bCount = max(1, $vals['bonus_count'] ?? 1);
+
+                    $salesVal = round(($vals['sales_sum'] ?? 0) / $sCount, 2);
+                    
+                    $sqlAvgPerf = "SELECT AVG(performance) as avg_perf FROM user_monthly_scorecards WHERE semester = :semester AND month_name = :month_name";
+                    $stmtAvg = $db->prepare($sqlAvgPerf);
+                    $stmtAvg->execute([':semester' => $semKey, ':month_name' => $mName]);
+                    $avgRes = $stmtAvg->fetch(PDO::FETCH_ASSOC);
+                    
+                    $perfVal = ($avgRes && $avgRes['avg_perf'] !== null && floatval($avgRes['avg_perf']) > 0) 
+                        ? round(floatval($avgRes['avg_perf']), 2) 
+                        : round(($vals['performance_sum'] ?? 0) / $pCount, 2);
+
+                    $dataToSave = [
+                        'sales' => $salesVal,
+                        'performance' => $perfVal,
+                        'incidents' => intval($vals['incidents'] ?? 0),
+                        'attendance_habits' => round(($vals['habits_sum'] ?? 0) / $hCount, 2),
+                        'six_steps' => round(($vals['steps_sum'] ?? 0) / $stCount, 2),
+                        'productivity_bonus' => round(($vals['bonus_sum'] ?? 0) / $bCount, 2),
+                        'oils' => intval($vals['oils'] ?? 0),
+                        'wrong_loadings' => intval($vals['wrong_loadings'] ?? 0),
+                        'client_complaints' => intval($vals['client_complaints'] ?? 0),
+                        'wrong_charges' => intval($vals['wrong_charges'] ?? 0),
+                        'invoices' => intval($vals['invoices'] ?? 0),
+                        'absences' => intval($vals['absences'] ?? 0),
+                        'centenarios_received' => intval($vals['centenarios_received'] ?? 0),
+                        'centenarios_redeemed' => intval($vals['centenarios_redeemed'] ?? 0),
+                        'redemption_amount' => floatval($vals['redemption_amount'] ?? 0)
+                    ];
+
+                    $this->templateModel->updateMonthlyScorecardFromData($semKey, $mName, $mIdx, $dataToSave);
+                }
+            }
+        }
+
+        foreach ($eval360Accumulator as $semKey => $evalData) {
+            if ($evalData['count'] > 0) {
+                $avg360 = round($evalData['sum'] / $evalData['count'], 2);
+                $sql360 = "UPDATE monthly_scorecards SET eval_360 = :eval_360 WHERE semester = :semester";
+                $stmt360 = $db->prepare($sql360);
+                $stmt360->execute([':eval_360' => $avg360, ':semester' => $semKey]);
+            }
+        }
+
+        foreach ($projectSemesterAccumulator as $semKey => $totalProj) {
+            $colName = ($semesterNum === '2') ? 'semester_project_2' : 'semester_project_1';
+            $sqlProj = "UPDATE monthly_scorecards SET {$colName} = :proj_val WHERE semester = :semester";
+            $stmtProj = $db->prepare($sqlProj);
+            $stmtProj->execute([':proj_val' => $totalProj, ':semester' => $semKey]);
         }
 
         return ['row_count' => max(1, $validRowCount)];
