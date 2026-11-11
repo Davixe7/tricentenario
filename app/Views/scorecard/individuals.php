@@ -460,7 +460,7 @@
                                     </div>
                                     <div>
                                         <span class="small text-muted d-block" style="font-size: 7.5px;">360º Individual</span>
-                                        <span class="fw-bold text-dark"><?= round($summaryData['avg_eval_360'] ?? 0) ?>%</span>
+                                        <span class="fw-bold text-dark" id="indEval360"><?= round($summaryData['avg_eval_360'] ?? 0) ?>%</span>
                                     </div>
                                 </div>
                             </div>
@@ -483,7 +483,10 @@
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Calificación Final</span>
                                 <?php 
-                                    $valQual = isset($semesterFinals['final_qualification']) ? round($semesterFinals['final_qualification']) : round($summaryData['avg_eval_360'] ?? 0);
+                                    $finalPerfVal = isset($semesterFinals['final_performance']) ? floatval($semesterFinals['final_performance']) : $tPerf;
+                                    $eval360IndVal = floatval($summaryData['avg_eval_360'] ?? 0);
+                                    $defaultQual = round(($finalPerfVal * 0.5) + ($eval360IndVal * 0.5));
+                                    $valQual = isset($semesterFinals['final_qualification']) ? round($semesterFinals['final_qualification']) : $defaultQual;
                                 ?>
                                 <input type="text" name="final_qualification" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 70px; padding: 1px;" value="<?= $valQual ?>%">
                             </div>

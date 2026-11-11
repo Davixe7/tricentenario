@@ -200,8 +200,7 @@ class TemplateController {
         $individualRecords = [];
         $eval360Accumulator = [];
         $projectSemesterAccumulator = [];
-        $bitacoraIncidentsByUserMonth = [];
-
+        
         $currentYear = '2026';
         if (preg_match('/(20\d{2})/', $originalName, $match)) {
             $currentYear = $match[1];
@@ -233,7 +232,6 @@ class TemplateController {
             $userNameMap[$shortNameKey] = (int)$uRow['id'];
         }
 
-        // Helper para resolver o crear usuario capitalizando el nombre completo
         $resolveOrCreateUser = function($empNum, $rawEmployeeName) use ($db, $despachadorPositionId, &$userMap, &$userNameMap) {
             $matchedUserId = $userMap[$empNum] ?? null;
 
@@ -349,9 +347,15 @@ class TemplateController {
                 $aceitesPct = ($dias > 0) ? (($aceitesCount / ($dias * 2)) * 100) : 0;
                 if ($aceitesPct > 100.0) $aceitesPct = 100.0;
 
-                $numIncidencias = intval($rowData['INCIDENCIAS'] ?? 0);
-                if ($matchedUserId && isset($bitacoraIncidentsByUserMonth[$matchedUserId][$monthName])) {
-                    $numIncidencias = $bitacoraIncidentsByUserMonth[$matchedUserId][$monthName];
+                // CONSULTAR INCIDENCIAS REALES DE LA BD (Bitácora) PARA ESTE USUARIO Y MES
+                $numIncidencias = 0;
+                if ($matchedUserId) {
+                    $stmtInc = $db->prepare("SELECT incidents FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name LIMIT 1");
+                    $stmtInc->execute([':user_id' => $matchedUserId, ':semester' => $semesterKey, ':month_name' => $monthName]);
+                    $incRow = $stmtInc->fetch(PDO::FETCH_ASSOC);
+                    if ($incRow) {
+                        $numIncidencias = intval($incRow['incidents']);
+                    }
                 }
 
                 if ($numIncidencias === 0) $incidenciasPct = 100.0;
@@ -364,7 +368,7 @@ class TemplateController {
                 $stepVal = floatval($rowData['6 PASOS'] ?? 0);
                 if ($stepVal <= 1.0 && $stepVal > 0) $stepVal = $stepVal * 100;
 
-                $perfVal = ($ventasPct * 0.7) + ($aceitesPct * 0.15) + ($incidenciasPct * 0.1) + ($stepVal * 0.05);
+                $perfVal = ($ventasPct * 0.70) + ($aceitesPct * 0.15) + ($incidenciasPct * 0.10) + ($stepVal * 0.05);
                 if ($perfVal > 999.99) $perfVal = 999.99;
 
                 $mAcc['sales_sum'] += $ventasPct;
@@ -438,9 +442,15 @@ class TemplateController {
                     $existsCard = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
                     if (!$existsCard) {
-                        $sqlInsCard = "INSERT INTO user_monthly_scorecards (user_id, semester, month_name, month_index, incidents) VALUES (:user_id, :semester, :month_name, :month_index, 1)";
+                        $sqlInsCard = "INSERT INTO user_monthly_scorecards (user_id, semester, month_name, month_index, incidents) VALUES (:user_id, :semester, :month_name, :month_index, :incidents)";
                         $stmtInsCard = $db->prepare($sqlInsCard);
-                        $stmtInsCard->execute([':user_id' => $resolvedId, ':semester' => $semesterKey, ':month_name' => $monthName, ':month_index' => $monthIndex]);
+                        $stmtInsCard->execute([
+                            ':user_id' => $resolvedId, 
+                            ':semester' => $semesterKey, 
+                            ':month_name' => $monthName, 
+                            ':month_index' => $monthIndex, 
+                            ':incidents' => 1
+                        ]);
                     } else {
                         $sqlUpdInc = "UPDATE user_monthly_scorecards SET incidents = incidents + 1 WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
                         $stmtUpdInc = $db->prepare($sqlUpdInc);
