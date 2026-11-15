@@ -196,10 +196,8 @@ class TemplateController {
         }
 
         $validRowCount = 0;
-        $monthlyGlobalAccumulator = [];
+        $processedSemesters = [];
         $individualRecords = [];
-        $eval360Accumulator = [];
-        $projectSemesterAccumulator = [];
         
         $currentYear = '2026';
         if (preg_match('/(20\d{2})/', $originalName, $match)) {
@@ -314,27 +312,13 @@ class TemplateController {
                 if (empty($monthName)) { $monthName = 'Enero'; $monthIndex = 1; }
 
                 $semesterKey = ($monthIndex <= 6 ? '1' : '2') . '-' . $currentYear;
+                $processedSemesters[$semesterKey] = true;
+
                 $empNum = intval($rowData['# EMPLEADO'] ?? 0);
                 $rawEmployeeName = trim($rowData['NOMBRE'] ?? '');
 
                 $matchedUserId = $resolveOrCreateUser($empNum, $rawEmployeeName);
 
-                if (!isset($monthlyGlobalAccumulator[$semesterKey][$monthName])) {
-                    $monthlyGlobalAccumulator[$semesterKey][$monthName] = [
-                        'month_index' => $monthIndex,
-                        'sales_sum' => 0, 'sales_count' => 0,
-                        'performance_sum' => 0, 'performance_count' => 0,
-                        'steps_sum' => 0, 'steps_count' => 0,
-                        'habits_sum' => 0, 'habits_count' => 0,
-                        'bonus_sum' => 0, 'bonus_count' => 0,
-                        'oils' => 0, 'incidents' => 0, 'wrong_loadings' => 0, 'client_complaints' => 0,
-                        'wrong_charges' => 0, 'invoices' => 0, 'absences' => 0,
-                        'centenarios_received' => 0, 'centenarios_redeemed' => 0, 'redemption_amount' => 0
-                    ];
-                }
-
-                $mAcc = &$monthlyGlobalAccumulator[$semesterKey][$monthName];
-                
                 $litros = floatval($rowData['LITROS'] ?? 0);
                 $dias = max(1, intval($rowData['DIAS'] ?? 1));
                 $meta = floatval($rowData['META'] ?? 2500);
@@ -347,7 +331,7 @@ class TemplateController {
                 $aceitesPct = ($dias > 0) ? (($aceitesCount / ($dias * 2)) * 100) : 0;
                 if ($aceitesPct > 100.0) $aceitesPct = 100.0;
 
-                // CONSULTAR INCIDENCIAS REALES DE LA BD (Bitácora) PARA ESTE USUARIO Y MES
+                // CONSULTAR INCIDENCIAS DESDE LA BITÁCORA EN BD
                 $numIncidencias = 0;
                 if ($matchedUserId) {
                     $stmtInc = $db->prepare("SELECT incidents FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name LIMIT 1");
@@ -358,7 +342,8 @@ class TemplateController {
                     }
                 }
 
-                if ($numIncidencias === 0) $incidenciasPct = 100.0;
+                // Ajuste de incidencias: 0 incidencias equivale a 0% en la ponderación matemática
+                if ($numIncidencias === 0) $incidenciasPct = 0.0;
                 elseif ($numIncidencias === 1) $incidenciasPct = 90.0;
                 elseif ($numIncidencias === 2) $incidenciasPct = 80.0;
                 elseif ($numIncidencias === 3) $incidenciasPct = 70.0;
@@ -369,37 +354,12 @@ class TemplateController {
                 if ($stepVal <= 1.0 && $stepVal > 0) $stepVal = $stepVal * 100;
 
                 $perfVal = ($ventasPct * 0.70) + ($aceitesPct * 0.15) + ($incidenciasPct * 0.10) + ($stepVal * 0.05);
-                if ($perfVal > 999.99) $perfVal = 999.99;
-
-                $mAcc['sales_sum'] += $ventasPct;
-                $mAcc['sales_count']++;
-                $mAcc['performance_sum'] += $perfVal;
-                $mAcc['performance_count']++;
-                $mAcc['oils'] += $aceitesCount;
-                $mAcc['incidents'] += $numIncidencias;
-
-                $mAcc['steps_sum'] += $stepVal;
-                $mAcc['steps_count']++;
 
                 $habitVal = floatval($rowData['ASISTENCIA HÁBITOS'] ?? 0);
                 if ($habitVal <= 1.0 && $habitVal > 0) $habitVal = $habitVal * 100;
-                $mAcc['habits_sum'] += $habitVal;
-                $mAcc['habits_count']++;
-
-                $mAcc['wrong_loadings'] += intval($rowData['CARGAS EQUIVOCADAS'] ?? 0);
-                $mAcc['client_complaints'] += intval($rowData['QUEJAS DEL CLIENTE'] ?? 0);
-                $mAcc['wrong_charges'] += intval($rowData['COBROS EQUIVOCADOS'] ?? 0);
-                $mAcc['invoices'] += intval($rowData['FACTURAS'] ?? 0);
 
                 $bonusVal = floatval($rowData['BONO PRODUCTIVIDAD'] ?? 0);
                 if ($bonusVal <= 1.0 && $bonusVal > 0) $bonusVal = $bonusVal * 100;
-                $mAcc['bonus_sum'] += $bonusVal;
-                $mAcc['bonus_count']++;
-
-                $mAcc['absences'] += intval($rowData['FALTAS'] ?? 0);
-                $mAcc['centenarios_received'] += intval($rowData['CENTENARIOS RECIBIDOS'] ?? 0);
-                $mAcc['centenarios_redeemed'] += intval($rowData['CENTENARIOS OTORGADOS'] ?? 0);
-                $mAcc['redemption_amount'] += floatval($rowData['IMPORTE CANJE'] ?? 0);
 
                 if ($matchedUserId) {
                     $individualRecords[] = [
@@ -430,26 +390,26 @@ class TemplateController {
                 $monthIndex = $monthNameToIndex[$rawMonthName] ?? 1;
                 $monthName = ucwords(strtolower($rawMonthName));
                 $semesterKey = ($monthIndex <= 6 ? '1' : '2') . '-' . $currentYear;
+                $processedSemesters[$semesterKey] = true;
                 
                 $empReported = intval($rowData['# EMPLEADO REPORTADO'] ?? $rowData['# EMPLEADO'] ?? 0);
                 $empNameReported = trim($rowData['NOMBRE DEL REPORTADO'] ?? $rowData['NOMBRE'] ?? '');
                 
                 $resolvedId = $resolveOrCreateUser($empReported, $empNameReported);
                 if ($resolvedId) {
-                    $sqlCheckCard = "SELECT id FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
+                    $sqlCheckCard = "SELECT id, incidents FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
                     $stmtCheck = $db->prepare($sqlCheckCard);
                     $stmtCheck->execute([':user_id' => $resolvedId, ':semester' => $semesterKey, ':month_name' => $monthName]);
                     $existsCard = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
                     if (!$existsCard) {
-                        $sqlInsCard = "INSERT INTO user_monthly_scorecards (user_id, semester, month_name, month_index, incidents) VALUES (:user_id, :semester, :month_name, :month_index, :incidents)";
+                        $sqlInsCard = "INSERT INTO user_monthly_scorecards (user_id, semester, month_name, month_index, incidents) VALUES (:user_id, :semester, :month_name, :month_index, 1)";
                         $stmtInsCard = $db->prepare($sqlInsCard);
                         $stmtInsCard->execute([
                             ':user_id' => $resolvedId, 
                             ':semester' => $semesterKey, 
                             ':month_name' => $monthName, 
-                            ':month_index' => $monthIndex, 
-                            ':incidents' => 1
+                            ':month_index' => $monthIndex
                         ]);
                     } else {
                         $sqlUpdInc = "UPDATE user_monthly_scorecards SET incidents = incidents + 1 WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
@@ -457,11 +417,6 @@ class TemplateController {
                         $stmtUpdInc->execute([':user_id' => $resolvedId, ':semester' => $semesterKey, ':month_name' => $monthName]);
                     }
                 }
-
-                if (!isset($monthlyGlobalAccumulator[$semesterKey][$monthName])) {
-                    $monthlyGlobalAccumulator[$semesterKey][$monthName] = ['month_index' => $monthIndex, 'incidents' => 0];
-                }
-                $monthlyGlobalAccumulator[$semesterKey][$monthName]['incidents']++;
             }
             elseif ($templateKey === 'calificaciones_360') {
                 $empNum = intval($rowData['# EMPLEADO'] ?? 0);
@@ -470,6 +425,8 @@ class TemplateController {
                 if ($score360 <= 1.0 && $score360 > 0) $score360 = $score360 * 100;
                 
                 $matchedUserId = $resolveOrCreateUser($empNum, $rawEmployeeName);
+                $semKey = $semesterNum . '-' . $currentYear;
+                $processedSemesters[$semKey] = true;
 
                 if ($matchedUserId && $score360 > 0) {
                     $semMonths = ($semesterNum === '2') ? ['Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'] : ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'];
@@ -477,7 +434,7 @@ class TemplateController {
                         $mIdx = $monthNameToIndex[strtoupper($mName)] ?? 1;
                         $sqlCheckCard = "SELECT id FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
                         $stmtCheck = $db->prepare($sqlCheckCard);
-                        $stmtCheck->execute([':user_id' => $matchedUserId, ':semester' => $semesterNum . '-' . $currentYear, ':month_name' => $mName]);
+                        $stmtCheck->execute([':user_id' => $matchedUserId, ':semester' => $semKey, ':month_name' => $mName]);
                         $existsCard = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
                         if (!$existsCard) {
@@ -485,7 +442,7 @@ class TemplateController {
                             $stmtInsCard = $db->prepare($sqlInsCard);
                             $stmtInsCard->execute([
                                 ':user_id' => $matchedUserId,
-                                ':semester' => $semesterNum . '-' . $currentYear,
+                                ':semester' => $semKey,
                                 ':month_name' => $mName,
                                 ':month_index' => $mIdx,
                                 ':eval_360' => $score360
@@ -496,20 +453,11 @@ class TemplateController {
                             $stmtU360->execute([
                                 ':eval_360' => $score360,
                                 ':user_id' => $matchedUserId,
-                                ':semester' => $semesterNum . '-' . $currentYear,
+                                ':semester' => $semKey,
                                 ':month_name' => $mName
                             ]);
                         }
                     }
-                }
-
-                $semKey = $semesterNum . '-' . $currentYear;
-                if (!isset($eval360Accumulator[$semKey])) {
-                    $eval360Accumulator[$semKey] = ['sum' => 0, 'count' => 0];
-                }
-                if ($score360 > 0) {
-                    $eval360Accumulator[$semKey]['sum'] += $score360;
-                    $eval360Accumulator[$semKey]['count']++;
                 }
             }
             elseif ($templateKey === 'proyecto_semestre') {
@@ -518,15 +466,21 @@ class TemplateController {
                 $projVal = floatval($rowData['PROYECTO SEMESTRE 1'] ?? $rowData['PROYECTO SEMESTRE 2'] ?? $rowData['PROYECTO'] ?? $rowData['IMPORTE'] ?? 0);
                 
                 $matchedUserId = $resolveOrCreateUser($empNum, $rawEmployeeName);
-
                 $semKey = $semesterNum . '-' . $currentYear;
-                if (!isset($projectSemesterAccumulator[$semKey])) {
-                    $projectSemesterAccumulator[$semKey] = 0;
+                $processedSemesters[$semKey] = true;
+
+                if ($matchedUserId) {
+                    $sqlProjUser = "UPDATE user_monthly_scorecards SET semester_project_1 = :proj WHERE user_id = :user_id AND semester = :semester";
+                    if ($semesterNum === '2') {
+                        $sqlProjUser = "UPDATE user_monthly_scorecards SET semester_project_2 = :proj WHERE user_id = :user_id AND semester = :semester";
+                    }
+                    $stmtPU = $db->prepare($sqlProjUser);
+                    $stmtPU->execute([':proj' => $projVal, ':user_id' => $matchedUserId, ':semester' => $semKey]);
                 }
-                $projectSemesterAccumulator[$semKey] += $projVal;
             }
         }
 
+        // 1. Guardar registros individuales en user_monthly_scorecards
         foreach ($individualRecords as $ind) {
             $uId = $ind['user_id'];
             $semKey = $ind['semester'];
@@ -537,76 +491,138 @@ class TemplateController {
             $this->templateModel->updateUserMonthlyScorecard($semKey, $mName, $mIdx, $uId, $ind);
         }
 
-        if ($templateKey === 'bitacora_incidencias') {
-            foreach ($monthlyGlobalAccumulator as $semKey => $monthsArr) {
-                foreach ($monthsArr as $mName => $vals) {
-                    $dataToSave = [
-                        'incidents_only' => true,
-                        'incidents' => intval($vals['incidents'] ?? 0)
-                    ];
-                    $this->templateModel->updateMonthlyScorecardFromData($semKey, $mName, $vals['month_index'], $dataToSave);
-                }
-            }
-        } else {
-            foreach ($monthlyGlobalAccumulator as $semKey => $monthsArr) {
-                foreach ($monthsArr as $mName => $vals) {
-                    $mIdx = $vals['month_index'] ?? 1;
-                    $sCount = max(1, $vals['sales_count'] ?? 1);
-                    $pCount = max(1, $vals['performance_count'] ?? 1);
-                    $stCount = max(1, $vals['steps_count'] ?? 1);
-                    $hCount = max(1, $vals['habits_count'] ?? 1);
-                    $bCount = max(1, $vals['bonus_count'] ?? 1);
-
-                    $salesVal = round(($vals['sales_sum'] ?? 0) / $sCount, 2);
-                    
-                    $sqlAvgPerf = "SELECT AVG(performance) as avg_perf FROM user_monthly_scorecards WHERE semester = :semester AND month_name = :month_name";
-                    $stmtAvg = $db->prepare($sqlAvgPerf);
-                    $stmtAvg->execute([':semester' => $semKey, ':month_name' => $mName]);
-                    $avgRes = $stmtAvg->fetch(PDO::FETCH_ASSOC);
-                    
-                    $perfVal = ($avgRes && $avgRes['avg_perf'] !== null && floatval($avgRes['avg_perf']) > 0) 
-                        ? round(floatval($avgRes['avg_perf']), 2) 
-                        : round(($vals['performance_sum'] ?? 0) / $pCount, 2);
-
-                    $dataToSave = [
-                        'sales' => $salesVal,
-                        'performance' => $perfVal,
-                        'incidents' => intval($vals['incidents'] ?? 0),
-                        'attendance_habits' => round(($vals['habits_sum'] ?? 0) / $hCount, 2),
-                        'six_steps' => round(($vals['steps_sum'] ?? 0) / $stCount, 2),
-                        'productivity_bonus' => round(($vals['bonus_sum'] ?? 0) / $bCount, 2),
-                        'oils' => intval($vals['oils'] ?? 0),
-                        'wrong_loadings' => intval($vals['wrong_loadings'] ?? 0),
-                        'client_complaints' => intval($vals['client_complaints'] ?? 0),
-                        'wrong_charges' => intval($vals['wrong_charges'] ?? 0),
-                        'invoices' => intval($vals['invoices'] ?? 0),
-                        'absences' => intval($vals['absences'] ?? 0),
-                        'centenarios_received' => intval($vals['centenarios_received'] ?? 0),
-                        'centenarios_redeemed' => intval($vals['centenarios_redeemed'] ?? 0),
-                        'redemption_amount' => floatval($vals['redemption_amount'] ?? 0)
-                    ];
-
-                    $this->templateModel->updateMonthlyScorecardFromData($semKey, $mName, $mIdx, $dataToSave);
-                }
-            }
-        }
-
-        foreach ($eval360Accumulator as $semKey => $evalData) {
-            if ($evalData['count'] > 0) {
-                $avg360 = round($evalData['sum'] / $evalData['count'], 2);
-                $sql360 = "UPDATE monthly_scorecards SET eval_360 = :eval_360 WHERE semester = :semester";
-                $stmt360 = $db->prepare($sql360);
-                $stmt360->execute([':eval_360' => $avg360, ':semester' => $semKey]);
-            }
-        }
-
-        foreach ($projectSemesterAccumulator as $semKey => $totalProj) {
-            $colName = ($semesterNum === '2') ? 'semester_project_2' : 'semester_project_1';
-            $sqlProj = "UPDATE monthly_scorecards SET {$colName} = :proj_val WHERE semester = :semester";
-            $stmtProj = $db->prepare($sqlProj);
-            $stmtProj->execute([':proj_val' => $totalProj, ':semester' => $semKey]);
+        // 2. MÉTODO INTELIGENTE DE RECÁLCULO GLOBAL (IGNORANDO LOS CEROS DE USUARIOS INACTIVOS EN VENTAS)
+        foreach (array_keys($processedSemesters) as $semKey) {
+            $this->recalculateSemesterScorecardsMaster($db, $semKey);
         }
 
         return ['row_count' => max(1, $validRowCount)];
+    }
+
+    private function recalculateSemesterScorecardsMaster($db, $semesterKey) {
+        $months = str_starts_with($semesterKey, '1-') 
+            ? ['Enero' => 1, 'Febrero' => 2, 'Marzo' => 3, 'Abril' => 4, 'Mayo' => 5, 'Junio' => 6]
+            : ['Julio' => 7, 'Agosto' => 8, 'Septiembre' => 9, 'Octubre' => 10, 'Noviembre' => 11, 'Diciembre' => 12];
+
+        foreach ($months as $monthName => $monthIndex) {
+            $sqlAgg = "SELECT 
+                        AVG(NULLIF(sales, 0)) as avg_sales,
+                        AVG(NULLIF(performance, 0)) as avg_performance,
+                        SUM(incidents) as sum_incidents,
+                        AVG(NULLIF(attendance_habits, 0)) as avg_habits,
+                        SUM(wrong_loadings) as sum_wrong_loadings,
+                        AVG(NULLIF(six_steps, 0)) as avg_six_steps,
+                        SUM(client_complaints) as sum_client_complaints,
+                        SUM(wrong_charges) as sum_wrong_charges,
+                        SUM(oils) as sum_oils,
+                        SUM(invoices) as sum_invoices,
+                        AVG(NULLIF(productivity_bonus, 0)) as avg_bonus,
+                        SUM(absences) as sum_absences,
+                        SUM(centenarios_received) as sum_cent_rec,
+                        SUM(centenarios_redeemed) as sum_cent_red,
+                        SUM(redemption_amount) as sum_red_amt,
+                        AVG(NULLIF(eval_360, 0)) as avg_360,
+                        SUM(semester_project_1) as sum_proj_1,
+                        SUM(semester_project_2) as sum_proj_2
+                       FROM user_monthly_scorecards 
+                       WHERE semester = :semester AND month_name = :month_name";
+
+            $stmtAgg = $db->prepare($sqlAgg);
+            $stmtAgg->execute([':semester' => $semesterKey, ':month_name' => $monthName]);
+            $agg = $stmtAgg->fetch(PDO::FETCH_ASSOC);
+
+            if ($agg && $agg['avg_sales'] !== null) {
+                $salesVal = floatval($agg['avg_sales']);
+                if ($salesVal > 0 && $salesVal <= 1.0) $salesVal = $salesVal * 100;
+
+                $perfVal = floatval($agg['avg_performance']);
+                if ($perfVal > 0 && $perfVal <= 1.0) $perfVal = $perfVal * 100;
+
+                $sqlCheck = "SELECT id FROM monthly_scorecards WHERE semester = :semester AND month_name = :month_name";
+                $stmtChk = $db->prepare($sqlCheck);
+                $stmtChk->execute([':semester' => $semesterKey, ':month_name' => $monthName]);
+                $exists = $stmtChk->fetch(PDO::FETCH_ASSOC);
+
+                if ($exists) {
+                    $sqlUpd = "UPDATE monthly_scorecards SET 
+                               sales = :sales,
+                               performance = :performance,
+                               incidents = :incidents,
+                               attendance_habits = :habits,
+                               wrong_loadings = :wrong_loadings,
+                               six_steps = :six_steps,
+                               client_complaints = :client_complaints,
+                               wrong_charges = :wrong_charges,
+                               oils = :oils,
+                               invoices = :invoices,
+                               productivity_bonus = :bonus,
+                               absences = :absences,
+                               centenarios_received = :cent_rec,
+                               centenarios_redeemed = :cent_red,
+                               redemption_amount = :red_amt,
+                               eval_360 = :eval_360,
+                               semester_project_1 = :proj_1,
+                               semester_project_2 = :proj_2
+                               WHERE semester = :semester AND month_name = :month_name";
+                    $stmtU = $db->prepare($sqlUpd);
+                    $stmtU->execute([
+                        ':sales' => $salesVal,
+                        ':performance' => $perfVal,
+                        ':incidents' => $agg['sum_incidents'] ?? 0,
+                        ':habits' => $agg['avg_habits'] ?? 0,
+                        ':wrong_loadings' => $agg['sum_wrong_loadings'] ?? 0,
+                        ':six_steps' => $agg['avg_six_steps'] ?? 0,
+                        ':client_complaints' => $agg['sum_client_complaints'] ?? 0,
+                        ':wrong_charges' => $agg['sum_wrong_charges'] ?? 0,
+                        ':oils' => $agg['sum_oils'] ?? 0,
+                        ':invoices' => $agg['sum_invoices'] ?? 0,
+                        ':bonus' => $agg['avg_bonus'] ?? 0,
+                        ':absences' => $agg['sum_absences'] ?? 0,
+                        ':cent_rec' => $agg['sum_cent_rec'] ?? 0,
+                        ':cent_red' => $agg['sum_cent_red'] ?? 0,
+                        ':red_amt' => $agg['sum_red_amt'] ?? 0,
+                        ':eval_360' => $agg['avg_360'] ?? 0,
+                        ':proj_1' => $agg['sum_proj_1'] ?? 0,
+                        ':proj_2' => $agg['sum_proj_2'] ?? 0,
+                        ':semester' => $semesterKey,
+                        ':month_name' => $monthName
+                    ]);
+                } else {
+                    $sqlIns = "INSERT INTO monthly_scorecards 
+                               (semester, month_name, month_index, sales, performance, incidents, attendance_habits, 
+                                wrong_loadings, six_steps, client_complaints, wrong_charges, oils, invoices, 
+                                productivity_bonus, absences, centenarios_received, centenarios_redeemed, 
+                                redemption_amount, eval_360, semester_project_1, semester_project_2) 
+                               VALUES 
+                               (:semester, :month_name, :month_index, :sales, :performance, :incidents, :habits, 
+                                :wrong_loadings, :six_steps, :client_complaints, :wrong_charges, :oils, :invoices, 
+                                :bonus, :absences, :cent_rec, :cent_red, :red_amt, :eval_360, :proj_1, :proj_2)";
+                    $stmtI = $db->prepare($sqlIns);
+                    $stmtI->execute([
+                        ':semester' => $semesterKey,
+                        ':month_name' => $monthName,
+                        ':month_index' => $monthIndex,
+                        ':sales' => $salesVal,
+                        ':performance' => $perfVal,
+                        ':incidents' => $agg['sum_incidents'] ?? 0,
+                        ':habits' => $agg['avg_habits'] ?? 0,
+                        ':wrong_loadings' => $agg['sum_wrong_loadings'] ?? 0,
+                        ':six_steps' => $agg['avg_six_steps'] ?? 0,
+                        ':client_complaints' => $agg['sum_client_complaints'] ?? 0,
+                        ':wrong_charges' => $agg['sum_wrong_charges'] ?? 0,
+                        ':oils' => $agg['sum_oils'] ?? 0,
+                        ':invoices' => $agg['sum_invoices'] ?? 0,
+                        ':bonus' => $agg['avg_bonus'] ?? 0,
+                        ':absences' => $agg['sum_absences'] ?? 0,
+                        ':cent_rec' => $agg['sum_cent_rec'] ?? 0,
+                        ':cent_red' => $agg['sum_cent_red'] ?? 0,
+                        ':red_amt' => $agg['sum_red_amt'] ?? 0,
+                        ':eval_360' => $agg['avg_360'] ?? 0,
+                        ':proj_1' => $agg['sum_proj_1'] ?? 0,
+                        ':proj_2' => $agg['sum_proj_2'] ?? 0
+                    ]);
+                }
+            }
+        }
     }
 }

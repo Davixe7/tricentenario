@@ -86,7 +86,15 @@
                         <?php 
                         foreach ($fieldsMap as $englishField => $spanishLabel) {
                             $val = $row[$englishField] ?? 0;
-                            if ($hasData) $totals[$englishField] += $val;
+                            if ($hasData) {
+                                if ($englishField === 'incidents') {
+                                    $totals['incidents'] += (int)$val;
+                                } elseif (in_array($englishField, ['wrong_loadings', 'client_complaints', 'wrong_charges', 'oils', 'invoices', 'absences'])) {
+                                    $totals[$englishField] += (int)$val;
+                                } else {
+                                    $totals[$englishField] += floatval($val);
+                                }
+                            }
                             
                             $bgClass = '';
                             if (in_array($englishField, ['sales', 'performance', 'attendance_habits', 'six_steps', 'productivity_bonus']) && $hasData) {
@@ -99,7 +107,8 @@
                                 }
                             }
                             
-                            $displayVal = $hasData ? ($englishField == 'sales' || $englishField == 'performance' || $englishField == 'attendance_habits' || $englishField == 'six_steps' || $englishField == 'productivity_bonus' ? $val . '%' : $val) : '-';
+                            $isPercent = in_array($englishField, ['sales', 'performance', 'attendance_habits', 'six_steps', 'productivity_bonus']);
+                            $displayVal = $hasData ? ($isPercent ? number_format($val, 2, ',', '.') . '%' : (int)$val) : '-';
                             
                             echo '<td class="'.$bgClass.'">'.$displayVal.'</td>';
                         }
@@ -112,18 +121,18 @@
                     <td>Totales / Promedio</td>
                     <?php 
                     $count = max(1, $totals['count']);
-                    echo '<td>'.number_format($totals['sales'] / $count, 1).'%</td>';
-                    echo '<td>'.number_format($totals['performance'] / $count, 1).'%</td>';
-                    echo '<td>'.$totals['incidents'].'</td>';
-                    echo '<td>'.number_format($totals['attendance_habits'] / $count, 1).'%</td>';
-                    echo '<td>'.$totals['wrong_loadings'].'</td>';
-                    echo '<td>'.number_format($totals['six_steps'] / $count, 1).'%</td>';
-                    echo '<td>'.$totals['client_complaints'].'</td>';
-                    echo '<td>'.$totals['wrong_charges'].'</td>';
-                    echo '<td>'.$totals['oils'].'</td>';
-                    echo '<td>'.$totals['invoices'].'</td>';
-                    echo '<td>'.number_format($totals['productivity_bonus'] / $count, 1).'%</td>';
-                    echo '<td>'.$totals['absences'].'</td>';
+                    echo '<td>'.number_format($totals['sales'] / $count, 2, ',', '.').'%</td>';
+                    echo '<td>'.number_format($totals['performance'] / $count, 2, ',', '.').'%</td>';
+                    echo '<td>'.(int)$totals['incidents'].'</td>';
+                    echo '<td>'.number_format($totals['attendance_habits'] / $count, 2, ',', '.').'%</td>';
+                    echo '<td>'.(int)$totals['wrong_loadings'].'</td>';
+                    echo '<td>'.number_format($totals['six_steps'] / $count, 2, ',', '.').'%</td>';
+                    echo '<td>'.(int)$totals['client_complaints'].'</td>';
+                    echo '<td>'.(int)$totals['wrong_charges'].'</td>';
+                    echo '<td>'.(int)$totals['oils'].'</td>';
+                    echo '<td>'.(int)$totals['invoices'].'</td>';
+                    echo '<td>'.number_format($totals['productivity_bonus'] / $count, 2, ',', '.').'%</td>';
+                    echo '<td>'.(int)$totals['absences'].'</td>';
                     ?>
                 </tr>
             </tfoot>
@@ -146,11 +155,11 @@
                         ?>
                         <div class="text-center">
                             <span class="small text-muted d-block">Recibidos</span>
-                            <span class="fs-6 fw-bold text-dark"><?= $summaryData['total_centenarios_received'] ?? 0 ?></span>
+                            <span class="fs-6 fw-bold text-dark"><?= (int)($summaryData['total_centenarios_received'] ?? 0) ?></span>
                         </div>
                         <div class="text-center">
                             <span class="small text-muted d-block">Canjeados</span>
-                            <span class="fs-6 fw-bold text-dark"><?= $summaryData['total_centenarios_redeemed'] ?? 0 ?></span>
+                            <span class="fs-6 fw-bold text-dark"><?= (int)($summaryData['total_centenarios_redeemed'] ?? 0) ?></span>
                         </div>
                         <div class="text-center">
                             <span class="small text-muted d-block">Importe Canje</span>
@@ -163,7 +172,7 @@
                     <div class="bg-dark text-white fw-bold text-center py-2 small">EVALUACIÓN 360º</div>
                     <div class="card-body py-3 d-flex flex-column align-items-center justify-content-center text-center">
                         <span class="small text-muted d-block">360º General S<?= $semesterNum ?></span>
-                        <span class="fs-6 fw-bold text-dark"><?= number_format($summaryData['avg_eval_360'] ?? 0, 2) ?>%</span>
+                        <span class="fs-6 fw-bold text-dark"><?= number_format($summaryData['avg_eval_360'] ?? 0, 2, ',', '.') ?>%</span>
                     </div>
                 </div>
             </div>
@@ -177,11 +186,11 @@
             <div class="card-body py-3 d-flex align-items-center justify-content-around">
                 <div class="text-center">
                     <span class="small text-muted d-block">Desempeño General</span>
-                    <span class="fs-6 fw-bold text-dark"><?= number_format($summaryData['avg_performance'] ?? 0, 1) ?>%</span>
+                    <span class="fs-6 fw-bold text-dark"><?= number_format($totals['performance'] / $count, 2, ',', '.') ?>%</span>
                 </div>
                 <div class="text-center">
                     <span class="small text-muted d-block">Calificación Final</span>
-                    <span class="fs-6 fw-bold text-dark"><?= number_format($summaryData['avg_eval_360'] ?? 0, 1) ?>%</span>
+                    <span class="fs-6 fw-bold text-dark"><?= number_format($summaryData['avg_final_qualification'] ?? 0, 2, ',', '.') ?>%</span>
                 </div>
                 <div class="text-center">
                     <?php 
@@ -189,7 +198,7 @@
                             ? ($summaryData['total_semester_project_2'] ?? 0) 
                             : ($summaryData['total_semester_project_1'] ?? 0);
                     ?>
-                    <span class="small text-muted d-block">Proyecto Semestre <?= $semesterNum ?></span>
+                    <span class="small text-muted d-block">Proyecto S<?= $semesterNum ?></span>
                     <span class="fs-6 fw-bold text-dark">$<?= number_format($projectVal, 2) ?></span>
                 </div>
             </div>

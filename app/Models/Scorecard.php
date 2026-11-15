@@ -35,19 +35,17 @@ class Scorecard {
         
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':semester' => $semester]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-        return $result ?: [
-            'avg_sales' => 0,
-            'avg_performance' => 0,
-            'total_incidents' => 0,
-            'total_centenarios_received' => 0,
-            'total_centenarios_redeemed' => 0,
-            'total_redemption_amount' => 0,
-            'avg_eval_360' => 0,
-            'total_semester_project_1' => 0,
-            'total_semester_project_2' => 0
-        ];
+        // Obtener el promedio real de las Calificaciones Finales de las boletas individuales de los colaboradores
+        $sqlFinalQual = "SELECT AVG(final_qualification) as avg_final_qual FROM user_semester_finals WHERE semester = :semester";
+        $stmtQual = $this->db->prepare($sqlFinalQual);
+        $stmtQual->execute([':semester' => $semester]);
+        $qualRes = $stmtQual->fetch(PDO::FETCH_ASSOC);
+        
+        $result['avg_final_qualification'] = ($qualRes && $qualRes['avg_final_qual'] !== null) ? floatval($qualRes['avg_final_qual']) : ($result['avg_eval_360'] ?? 0);
+
+        return $result;
     }
 
     public function getUserScorecardBySemester($userId, $semester) {

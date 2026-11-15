@@ -352,7 +352,23 @@
                             foreach ($months as $monthName => $mIndex): 
                                 $row = $savedData[$monthName] ?? [];
                                 $hasData = !empty($row);
-                                if ($hasData) $totals['count']++;
+                                if ($hasData) {
+                                    $totals['count']++;
+                                    // Forzar cálculo oficial si el desempeño registrado es 0 o estático antiguo
+                                    if (empty($row['performance']) || floatval($row['performance']) == 78) {
+                                        $s = floatval($row['sales'] ?? 0);
+                                        $o = floatval($row['oils'] ?? 0);
+                                        // Estimar % de aceites si viene en conteo bruto
+                                        $oilPct = ($o > 0 && $o <= 10) ? ($o / 2) * 100 : $o; 
+                                        if($oilPct > 100) $oilPct = 100;
+                                        $inc = intval($row['incidents'] ?? 0);
+                                        $incPct = ($inc === 0) ? 100 : (($inc === 1) ? 90 : (($inc === 2) ? 80 : (($inc === 3) ? 70 : 0)));
+                                        $stp = floatval($row['six_steps'] ?? 0);
+                                        if($stp <= 1.0 && $stp > 0) $stp *= 100;
+
+                                        $row['performance'] = ($s * 0.70) + ($oilPct * 0.15) + ($incPct * 0.10) + ($stp * 0.05);
+                                    }
+                                }
                             ?>
                                 <tr>
                                     <td class="fw-bold bg-light"><?= $monthName ?></td>
@@ -478,7 +494,7 @@
                             </div>
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Desempeño Individual</span>
-                                <span class="fw-bold text-dark"><?= round($summaryData['avg_performance'] ?? 0) ?>%</span>
+                                <span class="fw-bold text-dark"><?= $tPerf ?>%</span>
                             </div>
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Calificación Final</span>
