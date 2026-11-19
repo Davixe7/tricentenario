@@ -170,8 +170,7 @@ class TemplateController {
     }
 
     /**
-     * Incrementa el contador de incidencias del mes para un usuario
-     * (puede ser un usuario real o un ID negativo sintético para filas no emparejadas).
+     * Incrementa el contador de incidencias del mes para un usuario existente en `users`.
      */
     private function incrementMonthlyIncident($db, $userId, $semesterKey, $monthName, $monthIndex) {
         $sqlCheckCard = "SELECT id, incidents FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
@@ -302,16 +301,6 @@ class TemplateController {
             return null;
         };
 
-        // Genera un ID negativo estable por colaborador/fila no emparejada para acumular en user_monthly_scorecards
-        // sin crear registros en la tabla users ni hacer INNER JOIN con users.
-        $syntheticUserId = function($empNum, $rawEmployeeName, $excelRowNum) {
-            $key = ((int)$empNum > 0)
-                ? 'emp:' . (int)$empNum
-                : ('name:' . strtolower(preg_replace('/\s+/', ' ', trim($rawEmployeeName))) . ':row:' . (int)$excelRowNum);
-            $hash = abs(crc32($key));
-            return -1 * max(1, ($hash % 2000000000));
-        };
-
         for ($i = 1; $i < count($rows); $i++) {
             $row = $rows[$i];
             $excelRowNum = (int)($row['r'] ?? ($i + 1));
@@ -350,11 +339,9 @@ class TemplateController {
                 $rawEmployeeName = trim($rowData['NOMBRE'] ?? '');
 
                 $matchedUserId = $findExistingUser($empNum, $rawEmployeeName);
-                $isUnmatched = ($matchedUserId === null);
-                $targetUserId = $matchedUserId ?? $syntheticUserId($empNum, $rawEmployeeName, $excelRowNum);
-
-                if ($isUnmatched) {
-                    $this->logUnmatchedRow($db, $templateKey, $semesterKey, $monthName, $empNum, $rawEmployeeName, $excelRowNum, $rowData, 'Usuario no encontrado en users (incluido en acumulado mensual)');
+                if ($matchedUserId === null) {
+                    $this->logUnmatchedRow($db, $templateKey, $semesterKey, $monthName, $empNum, $rawEmployeeName, $excelRowNum, $rowData, 'Usuario no encontrado en users (omitido por FK)');
+                    continue;
                 }
 
                 $litros = floatval($rowData['LITROS'] ?? 0);
@@ -369,7 +356,7 @@ class TemplateController {
 
                 $numIncidencias = 0;
                 $stmtInc = $db->prepare("SELECT incidents FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name LIMIT 1");
-                $stmtInc->execute([':user_id' => $targetUserId, ':semester' => $semesterKey, ':month_name' => $monthName]);
+                $stmtInc->execute([':user_id' => $matchedUserId, ':semester' => $semesterKey, ':month_name' => $monthName]);
                 $incRow = $stmtInc->fetch(PDO::FETCH_ASSOC);
                 if ($incRow) {
                     $numIncidencias = intval($incRow['incidents']);
@@ -392,7 +379,7 @@ class TemplateController {
                     'semester' => $semesterKey,
                     'month_name' => $monthName,
                     'month_index' => $monthIndex,
-                    'user_id' => $targetUserId,
+                    'user_id' => $matchedUserId,
                     'sales' => $ventasPct,
                     'performance' => $perfVal,
                     'attendance_habits' => $habitVal,
@@ -421,8 +408,8 @@ class TemplateController {
 
                 $resolvedId = $findExistingUser($empReported, $empNameReported);
                 if ($resolvedId === null) {
-                    $this->logUnmatchedRow($db, $templateKey, $semesterKey, $monthName, $empReported, $empNameReported, $excelRowNum, $rowData, 'Reportado no encontrado en users (incluido en acumulado mensual)');
-                    $resolvedId = $syntheticUserId($empReported, $empNameReported, $excelRowNum);
+                    $this->logUnmatchedRow($db, $templateKey, $semesterKey, $monthName, $empReported, $empNameReported, $excelRowNum, $rowData, 'Reportado no encontrado en users (omitido por FK)');
+                    continue;
                 }
 
                 $this->incrementMonthlyIncident($db, $resolvedId, $semesterKey, $monthName, $monthIndex);
@@ -437,8 +424,8 @@ class TemplateController {
                 $semKey = $semesterNum . '-' . $currentYear;
 
                 if ($matchedUserId === null) {
-                    $this->logUnmatchedRow($db, $templateKey, $semKey, null, $empNum, $rawEmployeeName, $excelRowNum, $rowData, 'Colaborador 360 no encontrado en users (incluido en acumulado semestral)');
-                    $matchedUserId = $syntheticUserId($empNum, $rawEmployeeName, $excelRowNum);
+                    $this->logUnmatchedRow($db, $templateKey, $semKey, null, $empNum, $rawEmployeeName, $excelRowNum, $rowData, 'Colaborador 360 no encontrado en users (omitido por FK)');
+                    continue;
                 }
 
                 if ($score360 > 0) {
@@ -482,8 +469,8 @@ class TemplateController {
                 $semKey = $semesterNum . '-' . $currentYear;
 
                 if ($matchedUserId === null) {
-                    $this->logUnmatchedRow($db, $templateKey, $semKey, null, $empNum, $rawEmployeeName, $excelRowNum, $rowData, 'Colaborador proyecto no encontrado en users (incluido en acumulado semestral)');
-                    $matchedUserId = $syntheticUserId($empNum, $rawEmployeeName, $excelRowNum);
+                    $this->logUnmatchedRow($db, $templateKey, $semKey, null, $empNum, $rawEmployeeName, $excelRowNum, $rowData, 'Colaborador proyecto no encontrado en users (omitido por FK)');
+                    continue;
                 }
 
                 $sqlProjUser = ($semesterNum === '2')
