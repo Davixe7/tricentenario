@@ -7,45 +7,126 @@ class Scorecard {
         $this->db = Database::getInstance();
     }
 
+    /**
+     * Calcula los indicadores mensuales de la Boleta General directamente
+     * desde user_monthly_scorecards (Single Source of Truth), incluyendo
+     * ceros de colaboradores del reporte mensual y excluyendo filas vacías
+     * generadas únicamente por 360° o bitácora de incidencias.
+     */
     public function getBySemester($semester) {
-        $sql = "SELECT * FROM monthly_scorecards WHERE semester = :semester ORDER BY month_index ASC";
+        $hasReportCond = "(
+            ums.sales > 0 OR ums.performance > 0 OR ums.oils > 0 OR
+            ums.attendance_habits > 0 OR ums.six_steps > 0 OR
+            ums.wrong_loadings > 0 OR ums.client_complaints > 0 OR
+            ums.wrong_charges > 0 OR ums.invoices > 0 OR
+            ums.productivity_bonus > 0 OR ums.absences > 0 OR
+            ums.centenarios_received > 0 OR ums.centenarios_redeemed > 0 OR
+            ums.redemption_amount > 0
+        )";
+
+        $sql = "SELECT
+                    ums.semester,
+                    ums.month_name,
+                    ums.month_index,
+                    AVG(CASE WHEN {$hasReportCond} THEN ums.sales END) AS sales,
+                    AVG(CASE WHEN {$hasReportCond} THEN ums.performance END) AS performance,
+                    SUM(ums.incidents) AS incidents,
+                    AVG(CASE WHEN {$hasReportCond} THEN ums.attendance_habits END) AS attendance_habits,
+                    SUM(ums.wrong_loadings) AS wrong_loadings,
+                    AVG(CASE WHEN {$hasReportCond} THEN ums.six_steps END) AS six_steps,
+                    SUM(ums.client_complaints) AS client_complaints,
+                    SUM(ums.wrong_charges) AS wrong_charges,
+                    SUM(ums.oils) AS oils,
+                    SUM(ums.invoices) AS invoices,
+                    AVG(CASE WHEN {$hasReportCond} THEN ums.productivity_bonus END) AS productivity_bonus,
+                    SUM(ums.absences) AS absences,
+                    SUM(ums.centenarios_received) AS centenarios_received,
+                    SUM(ums.centenarios_redeemed) AS centenarios_redeemed,
+                    SUM(ums.redemption_amount) AS redemption_amount,
+                    AVG(NULLIF(ums.eval_360, 0)) AS eval_360,
+                    SUM(ums.semester_project_1) AS semester_project_1,
+                    SUM(ums.semester_project_2) AS semester_project_2
+                FROM user_monthly_scorecards ums
+                WHERE ums.semester = :semester
+                GROUP BY ums.semester, ums.month_name, ums.month_index
+                ORDER BY ums.month_index ASC";
+
         $stmt = $this->db->prepare($sql);
         $stmt->execute([':semester' => $semester]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         $data = [];
         foreach ($rows as $row) {
+            $row['sales'] = $row['sales'] !== null ? round((float)$row['sales'], 2) : 0.0;
+            $row['performance'] = $row['performance'] !== null ? round((float)$row['performance'], 2) : 0.0;
+            $row['attendance_habits'] = $row['attendance_habits'] !== null ? round((float)$row['attendance_habits'], 2) : 0.0;
+            $row['six_steps'] = $row['six_steps'] !== null ? round((float)$row['six_steps'], 2) : 0.0;
+            $row['productivity_bonus'] = $row['productivity_bonus'] !== null ? round((float)$row['productivity_bonus'], 2) : 0.0;
+            $row['eval_360'] = $row['eval_360'] !== null ? round((float)$row['eval_360'], 2) : 0.0;
             $data[$row['month_name']] = $row;
         }
         return $data;
     }
 
+    /**
+     * Resumen semestral computado a partir de los meses calculados y
+     * las calificaciones finales capturadas en user_semester_finals.
+     */
     public function getSemesterSummary($semester) {
-        $sql = "SELECT 
-                AVG(sales) as avg_sales,
-                AVG(performance) as avg_performance,
-                SUM(incidents) as total_incidents,
-                SUM(centenarios_received) as total_centenarios_received,
-                SUM(centenarios_redeemed) as total_centenarios_redeemed,
-                SUM(redemption_amount) as total_redemption_amount,
-                AVG(eval_360) as avg_eval_360,
-                SUM(semester_project_1) as total_semester_project_1,
-                SUM(semester_project_2) as total_semester_project_2
-                FROM monthly_scorecards WHERE semester = :semester";
-        
-        $stmt = $this->db->prepare($sql);
-        $stmt->execute([':semester' => $semester]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+        $monthlyRows = $this->getBySemester($semester);
 
-        // Obtener el promedio real de las Calificaciones Finales de las boletas individuales de los colaboradores
-        $sqlFinalQual = "SELECT AVG(final_qualification) as avg_final_qual FROM user_semester_finals WHERE semester = :semester";
+        $monthsCount = count($monthlyRows);
+        $sumSales = 0.0;
+        $sumPerf = 0.0;
+        $totalIncidents = 0;
+        $totalCentRec = 0;
+        $totalCentRed = 0;
+        $totalRedAmt = 0.0;
+        $sumProj1 = 0.0;
+        $sumProj2 = 0.0;
+
+        foreach ($monthlyRows as $m) {
+            $sumSales += (float)($m['sales'] ?? 0);
+            $sumPerf += (float)($m['performance'] ?? 0);
+            $totalIncidents += (int)($m['incidents'] ?? 0);
+            $totalCentRec += (int)($m['centenarios_received'] ?? 0);
+            $totalCentRed += (int)($m['centenarios_redeemed'] ?? 0);
+            $totalRedAmt += (float)($m['redemption_amount'] ?? 0);
+            $sumProj1 += (float)($m['semester_project_1'] ?? 0);
+            $sumProj2 += (float)($m['semester_project_2'] ?? 0);
+        }
+
+        $sql360 = "SELECT AVG(NULLIF(ums.eval_360, 0)) AS avg_eval_360
+                   FROM user_monthly_scorecards ums
+                   WHERE ums.semester = :semester";
+        $stmt360 = $this->db->prepare($sql360);
+        $stmt360->execute([':semester' => $semester]);
+        $row360 = $stmt360->fetch(PDO::FETCH_ASSOC);
+        $avg360 = ($row360 && $row360['avg_eval_360'] !== null) ? round((float)$row360['avg_eval_360'], 2) : 0.0;
+
+        $sqlFinalQual = "SELECT AVG(final_qualification) AS avg_final_qual
+                         FROM user_semester_finals
+                         WHERE semester = :semester";
         $stmtQual = $this->db->prepare($sqlFinalQual);
         $stmtQual->execute([':semester' => $semester]);
         $qualRes = $stmtQual->fetch(PDO::FETCH_ASSOC);
-        
-        $result['avg_final_qualification'] = ($qualRes && $qualRes['avg_final_qual'] !== null) ? floatval($qualRes['avg_final_qual']) : ($result['avg_eval_360'] ?? 0);
 
-        return $result;
+        $avgFinalQual = ($qualRes && $qualRes['avg_final_qual'] !== null)
+            ? round((float)$qualRes['avg_final_qual'], 2)
+            : 0.0;
+
+        return [
+            'avg_sales' => $monthsCount > 0 ? round($sumSales / $monthsCount, 2) : 0.0,
+            'avg_performance' => $monthsCount > 0 ? round($sumPerf / $monthsCount, 2) : 0.0,
+            'total_incidents' => $totalIncidents,
+            'total_centenarios_received' => $totalCentRec,
+            'total_centenarios_redeemed' => $totalCentRed,
+            'total_redemption_amount' => round($totalRedAmt, 2),
+            'avg_eval_360' => $avg360,
+            'total_semester_project_1' => round($sumProj1, 2),
+            'total_semester_project_2' => round($sumProj2, 2),
+            'avg_final_qualification' => $avgFinalQual
+        ];
     }
 
     public function getUserScorecardBySemester($userId, $semester) {
@@ -65,7 +146,7 @@ class Scorecard {
     }
 
     public function getUserSemesterSummary($userId, $semester) {
-        $sql = "SELECT 
+        $sql = "SELECT
                 AVG(sales) as avg_sales,
                 AVG(performance) as avg_performance,
                 SUM(incidents) as total_incidents,
@@ -112,16 +193,16 @@ class Scorecard {
         };
 
         $sql = "INSERT INTO user_semester_finals (
-            user_id, semester, final_sales, final_performance, final_incidents, 
-            final_attendance_habits, final_wrong_loadings, final_six_steps, 
-            final_client_complaints, final_wrong_charges, final_oils, final_invoices, 
+            user_id, semester, final_sales, final_performance, final_incidents,
+            final_attendance_habits, final_wrong_loadings, final_six_steps,
+            final_client_complaints, final_wrong_charges, final_oils, final_invoices,
             final_productivity_bonus, final_absences, final_qualification, final_semester_project
         ) VALUES (
-            :user_id, :semester, :final_sales, :final_performance, :final_incidents, 
-            :final_attendance_habits, :final_wrong_loadings, :final_six_steps, 
-            :final_client_complaints, :final_wrong_charges, :final_oils, :final_invoices, 
+            :user_id, :semester, :final_sales, :final_performance, :final_incidents,
+            :final_attendance_habits, :final_wrong_loadings, :final_six_steps,
+            :final_client_complaints, :final_wrong_charges, :final_oils, :final_invoices,
             :final_productivity_bonus, :final_absences, :final_qualification, :final_semester_project
-        ) ON DUPLICATE KEY UPDATE 
+        ) ON DUPLICATE KEY UPDATE
             final_sales = VALUES(final_sales),
             final_performance = VALUES(final_performance),
             final_incidents = VALUES(final_incidents),

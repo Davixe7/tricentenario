@@ -108,7 +108,7 @@
                             }
                             
                             $isPercent = in_array($englishField, ['sales', 'performance', 'attendance_habits', 'six_steps', 'productivity_bonus']);
-                            $displayVal = $hasData ? ($isPercent ? number_format($val, 2, ',', '.') . '%' : (int)$val) : '-';
+                            $displayVal = $hasData ? ($isPercent ? number_format((float)$val, 2, ',', '.') . '%' : (int)$val) : '-';
                             
                             echo '<td class="'.$bgClass.'">'.$displayVal.'</td>';
                         }
@@ -172,7 +172,7 @@
                     <div class="bg-dark text-white fw-bold text-center py-2 small">EVALUACIÓN 360º</div>
                     <div class="card-body py-3 d-flex flex-column align-items-center justify-content-center text-center">
                         <span class="small text-muted d-block">360º General S<?= $semesterNum ?></span>
-                        <span class="fs-6 fw-bold text-dark"><?= number_format($summaryData['avg_eval_360'] ?? 0, 2, ',', '.') ?>%</span>
+                        <span class="fs-6 fw-bold text-dark"><?= number_format((float)($summaryData['avg_eval_360'] ?? 0), 2, ',', '.') ?>%</span>
                     </div>
                 </div>
             </div>
@@ -190,7 +190,7 @@
                 </div>
                 <div class="text-center">
                     <span class="small text-muted d-block">Calificación Final</span>
-                    <span class="fs-6 fw-bold text-dark"><?= number_format($summaryData['avg_final_qualification'] ?? 0, 2, ',', '.') ?>%</span>
+                    <span class="fs-6 fw-bold text-dark"><?= number_format((float)($summaryData['avg_final_qualification'] ?? 0), 2, ',', '.') ?>%</span>
                 </div>
                 <div class="text-center">
                     <?php 

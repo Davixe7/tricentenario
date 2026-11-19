@@ -1,5 +1,4 @@
 <style>
-/* Contenedor seguro con padding izquierdo perfecto y sin interferir con el header */
 .scorecard-view-wrapper {
     width: 100% !important;
     max-width: 100% !important;
@@ -7,7 +6,6 @@
     overflow-x: hidden !important;
 }
 
-/* Sincronizar el título superior con el mismo margen */
 .d-flex.align-items-center.justify-content-between.mb-3.no-print {
     padding-left: 15px !important;
     padding-right: 15px !important;
@@ -121,9 +119,7 @@
 
 <div class="scorecard-view-wrapper">
     <div class="d-flex align-items-center justify-content-between mb-3 no-print">
-        <h4 class="fw-bold text-brand-dark mb-0">
-            <?= $selectedUser ? 'Boleta / Boleta Individual' : 'Boleta / Boleta Individual' ?>
-        </h4>
+        <h4 class="fw-bold text-brand-dark mb-0">Boleta / Boleta Individual</h4>
         <?php if ($selectedUser): ?>
             <div class="d-flex align-items-center gap-2">
                 <a href="<?= BASE_URL ?>/scorecard/individuals?status=<?= urlencode($statusFilter) ?>&limit=<?= urlencode($limit) ?>" class="btn btn-sm btn-outline-secondary">
@@ -140,7 +136,6 @@
     </div>
 
     <?php if (!$selectedUser): ?>
-        <!-- 1. VISTA ÍNDICE / LISTADO DE DESPACHADORES -->
         <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-white py-3">
                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
@@ -248,7 +243,6 @@
         </div>
 
     <?php else: ?>
-        <!-- 2. VISTA BOLETA INDIVIDUAL DEL COLABORADOR -->
         <div class="card border-0 shadow-sm mb-3 bg-primary text-white">
             <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between">
                 <div>
@@ -281,7 +275,6 @@
             </div>
         </div>
 
-        <!-- FORMULARIO PRINCIPAL DE LA BOLETA INDIVIDUAL -->
         <form id="individualScorecardForm" action="<?= BASE_URL ?>/scorecard/individuals" method="POST">
             <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
             <input type="hidden" name="user_id" value="<?= $selectedUserId ?>">
@@ -328,10 +321,10 @@
                         <tbody>
                             <?php 
                             $totals = [
-                                'sales' => 0, 'performance' => 0, 'incidents' => 0, 'attendance_habits' => 0,
-                                'wrong_loadings' => 0, 'six_steps' => 0, 'client_complaints' => 0, 
+                                'sales' => 0.0, 'performance' => 0.0, 'incidents' => 0, 'attendance_habits' => 0.0,
+                                'wrong_loadings' => 0, 'six_steps' => 0.0, 'client_complaints' => 0, 
                                 'wrong_charges' => 0, 'oils' => 0, 'invoices' => 0, 
-                                'productivity_bonus' => 0, 'absences' => 0, 'count' => 0
+                                'productivity_bonus' => 0.0, 'absences' => 0, 'count' => 0
                             ];
 
                             $fieldsMap = [
@@ -354,20 +347,6 @@
                                 $hasData = !empty($row);
                                 if ($hasData) {
                                     $totals['count']++;
-                                    // Forzar cálculo oficial si el desempeño registrado es 0 o estático antiguo
-                                    if (empty($row['performance']) || floatval($row['performance']) == 78) {
-                                        $s = floatval($row['sales'] ?? 0);
-                                        $o = floatval($row['oils'] ?? 0);
-                                        // Estimar % de aceites si viene en conteo bruto
-                                        $oilPct = ($o > 0 && $o <= 10) ? ($o / 2) * 100 : $o; 
-                                        if($oilPct > 100) $oilPct = 100;
-                                        $inc = intval($row['incidents'] ?? 0);
-                                        $incPct = ($inc === 0) ? 100 : (($inc === 1) ? 90 : (($inc === 2) ? 80 : (($inc === 3) ? 70 : 0)));
-                                        $stp = floatval($row['six_steps'] ?? 0);
-                                        if($stp <= 1.0 && $stp > 0) $stp *= 100;
-
-                                        $row['performance'] = ($s * 0.70) + ($oilPct * 0.15) + ($incPct * 0.10) + ($stp * 0.05);
-                                    }
                                 }
                             ?>
                                 <tr>
@@ -375,13 +354,19 @@
                                     <?php 
                                     foreach ($fieldsMap as $englishField => $spanishLabel) {
                                         $val = $row[$englishField] ?? 0;
-                                        if ($hasData) $totals[$englishField] += $val;
+                                        if ($hasData) {
+                                            if (in_array($englishField, ['sales', 'performance', 'attendance_habits', 'six_steps', 'productivity_bonus'])) {
+                                                $totals[$englishField] += (float)$val;
+                                            } else {
+                                                $totals[$englishField] += (int)$val;
+                                            }
+                                        }
                                         
                                         $bgClass = '';
                                         if (in_array($englishField, ['sales', 'performance', 'attendance_habits', 'six_steps', 'productivity_bonus']) && $hasData) {
-                                            if ($val >= 80) {
+                                            if ((float)$val >= 80) {
                                                 $bgClass = 'bg-success text-white fw-bold';
-                                            } elseif ($val >= 60) {
+                                            } elseif ((float)$val >= 60) {
                                                 $bgClass = 'bg-warning text-dark fw-bold';
                                             } else {
                                                 $bgClass = 'bg-danger text-white fw-bold';
@@ -389,7 +374,9 @@
                                         }
                                         
                                         $isPercent = in_array($englishField, ['sales', 'performance', 'attendance_habits', 'six_steps', 'productivity_bonus']);
-                                        $displayVal = $hasData ? ($isPercent ? round($val) . '%' : (int)$val) : '-';
+                                        $displayVal = $hasData
+                                            ? ($isPercent ? number_format((float)$val, 2, ',', '.') . '%' : (int)$val)
+                                            : '-';
                                         
                                         echo '<td class="'.$bgClass.'">'.$displayVal.'</td>';
                                     }
@@ -398,45 +385,43 @@
                             <?php endforeach; ?>
                         </tbody>
                         <tfoot class="table-primary fw-bold">
-                            <!-- FILA 1: TOTALES -->
                             <tr>
                                 <td>Totales</td>
                                 <?php 
                                 $count = max(1, $totals['count']);
-                                $tSales = round($totals['sales'] / $count);
-                                $tPerf = round($totals['performance'] / $count);
-                                $tHabits = round($totals['attendance_habits'] / $count);
-                                $tSteps = round($totals['six_steps'] / $count);
-                                $tProd = round($totals['productivity_bonus'] / $count);
+                                $tSales = round($totals['sales'] / $count, 2);
+                                $tPerf = round($totals['performance'] / $count, 2);
+                                $tHabits = round($totals['attendance_habits'] / $count, 2);
+                                $tSteps = round($totals['six_steps'] / $count, 2);
+                                $tProd = round($totals['productivity_bonus'] / $count, 2);
 
-                                echo '<td>'.$tSales.'%</td>';
-                                echo '<td>'.$tPerf.'%</td>';
+                                echo '<td>'.number_format($tSales, 2, ',', '.').'%</td>';
+                                echo '<td>'.number_format($tPerf, 2, ',', '.').'%</td>';
                                 echo '<td>'.(int)$totals['incidents'].'</td>';
-                                echo '<td>'.$tHabits.'%</td>';
+                                echo '<td>'.number_format($tHabits, 2, ',', '.').'%</td>';
                                 echo '<td>'.(int)$totals['wrong_loadings'].'</td>';
-                                echo '<td>'.$tSteps.'%</td>';
+                                echo '<td>'.number_format($tSteps, 2, ',', '.').'%</td>';
                                 echo '<td>'.(int)$totals['client_complaints'].'</td>';
                                 echo '<td>'.(int)$totals['wrong_charges'].'</td>';
                                 echo '<td>'.(int)$totals['oils'].'</td>';
                                 echo '<td>'.(int)$totals['invoices'].'</td>';
-                                echo '<td>'.$tProd.'%</td>';
+                                echo '<td>'.number_format($tProd, 2, ',', '.').'%</td>';
                                 echo '<td>'.(int)$totals['absences'].'</td>';
                                 ?>
                             </tr>
-                            <!-- FILA 2: FINALES (EDITABLE) -->
                             <tr class="table-warning">
                                 <td class="text-dark">Finales (Editable)</td>
-                                <td><input type="text" name="final_sales" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_sales']) ? round($semesterFinals['final_sales']) . '%' : $tSales . '%' ?>"></td>
-                                <td><input type="text" name="final_performance" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_performance']) ? round($semesterFinals['final_performance']) . '%' : $tPerf . '%' ?>"></td>
+                                <td><input type="text" name="final_sales" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_sales']) ? number_format((float)$semesterFinals['final_sales'], 2, ',', '.') . '%' : number_format($tSales, 2, ',', '.') . '%' ?>"></td>
+                                <td><input type="text" name="final_performance" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_performance']) ? number_format((float)$semesterFinals['final_performance'], 2, ',', '.') . '%' : number_format($tPerf, 2, ',', '.') . '%' ?>"></td>
                                 <td><input type="text" name="final_incidents" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_incidents']) ? (int)$semesterFinals['final_incidents'] : (int)$totals['incidents'] ?>"></td>
-                                <td><input type="text" name="final_attendance_habits" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_attendance_habits']) ? round($semesterFinals['final_attendance_habits']) . '%' : $tHabits . '%' ?>"></td>
+                                <td><input type="text" name="final_attendance_habits" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_attendance_habits']) ? number_format((float)$semesterFinals['final_attendance_habits'], 2, ',', '.') . '%' : number_format($tHabits, 2, ',', '.') . '%' ?>"></td>
                                 <td><input type="text" name="final_wrong_loadings" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_wrong_loadings']) ? (int)$semesterFinals['final_wrong_loadings'] : (int)$totals['wrong_loadings'] ?>"></td>
-                                <td><input type="text" name="final_six_steps" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_six_steps']) ? round($semesterFinals['final_six_steps']) . '%' : $tSteps . '%' ?>"></td>
+                                <td><input type="text" name="final_six_steps" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_six_steps']) ? number_format((float)$semesterFinals['final_six_steps'], 2, ',', '.') . '%' : number_format($tSteps, 2, ',', '.') . '%' ?>"></td>
                                 <td><input type="text" name="final_client_complaints" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_client_complaints']) ? (int)$semesterFinals['final_client_complaints'] : (int)$totals['client_complaints'] ?>"></td>
                                 <td><input type="text" name="final_wrong_charges" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_wrong_charges']) ? (int)$semesterFinals['final_wrong_charges'] : (int)$totals['wrong_charges'] ?>"></td>
                                 <td><input type="text" name="final_oils" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_oils']) ? (int)$semesterFinals['final_oils'] : (int)$totals['oils'] ?>"></td>
                                 <td><input type="text" name="final_invoices" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_invoices']) ? (int)$semesterFinals['final_invoices'] : (int)$totals['invoices'] ?>"></td>
-                                <td><input type="text" name="final_productivity_bonus" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_productivity_bonus']) ? round($semesterFinals['final_productivity_bonus']) . '%' : $tProd . '%' ?>"></td>
+                                <td><input type="text" name="final_productivity_bonus" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_productivity_bonus']) ? number_format((float)$semesterFinals['final_productivity_bonus'], 2, ',', '.') . '%' : number_format($tProd, 2, ',', '.') . '%' ?>"></td>
                                 <td><input type="text" name="final_absences" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_absences']) ? (int)$semesterFinals['final_absences'] : (int)$totals['absences'] ?>"></td>
                             </tr>
                         </tfoot>
@@ -472,11 +457,11 @@
                                 <div class="card-body py-1 d-flex align-items-center justify-content-around text-center">
                                     <div>
                                         <span class="small text-muted d-block" style="font-size: 7.5px;">360º General</span>
-                                        <span class="fw-bold text-dark"><?= round($generalSummaryData['avg_eval_360'] ?? 0) ?>%</span>
+                                        <span class="fw-bold text-dark"><?= number_format((float)($generalSummaryData['avg_eval_360'] ?? 0), 2, ',', '.') ?>%</span>
                                     </div>
                                     <div>
                                         <span class="small text-muted d-block" style="font-size: 7.5px;">360º Individual</span>
-                                        <span class="fw-bold text-dark" id="indEval360"><?= round($summaryData['avg_eval_360'] ?? 0) ?>%</span>
+                                        <span class="fw-bold text-dark" id="indEval360"><?= number_format((float)($summaryData['avg_eval_360'] ?? 0), 2, ',', '.') ?>%</span>
                                     </div>
                                 </div>
                             </div>
@@ -490,21 +475,21 @@
                         <div class="card-body py-1 d-flex align-items-center justify-content-around">
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Desempeño General</span>
-                                <span class="fw-bold text-dark"><?= round($generalSummaryData['avg_performance'] ?? 0) ?>%</span>
+                                <span class="fw-bold text-dark"><?= number_format((float)($generalSummaryData['avg_performance'] ?? 0), 2, ',', '.') ?>%</span>
                             </div>
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Desempeño Individual</span>
-                                <span class="fw-bold text-dark"><?= $tPerf ?>%</span>
+                                <span class="fw-bold text-dark"><?= number_format($tPerf, 2, ',', '.') ?>%</span>
                             </div>
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Calificación Final</span>
                                 <?php 
                                     $finalPerfVal = isset($semesterFinals['final_performance']) ? floatval($semesterFinals['final_performance']) : $tPerf;
                                     $eval360IndVal = floatval($summaryData['avg_eval_360'] ?? 0);
-                                    $defaultQual = round(($finalPerfVal * 0.5) + ($eval360IndVal * 0.5));
-                                    $valQual = isset($semesterFinals['final_qualification']) ? round($semesterFinals['final_qualification']) : $defaultQual;
+                                    $defaultQual = round(($finalPerfVal * 0.5) + ($eval360IndVal * 0.5), 2);
+                                    $valQual = isset($semesterFinals['final_qualification']) ? round((float)$semesterFinals['final_qualification'], 2) : $defaultQual;
                                 ?>
-                                <input type="text" name="final_qualification" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 70px; padding: 1px;" value="<?= $valQual ?>%">
+                                <input type="text" name="final_qualification" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 80px; padding: 1px;" value="<?= number_format($valQual, 2, ',', '.') ?>%">
                             </div>
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Proyecto S<?= $semesterNum ?></span>

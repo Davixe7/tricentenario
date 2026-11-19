@@ -127,7 +127,7 @@ class TemplateController {
                 if (move_uploaded_file($_FILES['excel_file']['tmp_name'], $targetFile)) {
                     $processingResult = $this->processExcelDataToScorecard($targetFile, $config['key'], $semesterNum, $originalName);
                     $rowCount = $processingResult['row_count'];
-                    
+
                     $userId = $_SESSION['user']['id'] ?? null;
                     $relativePath = 'uploads/templates/' . $filename;
 
@@ -140,6 +140,59 @@ class TemplateController {
         }
         header('Location: ' . BASE_URL);
         exit;
+    }
+
+    private function logUnmatchedRow($db, $templateKey, $semesterKey, $monthName, $empNum, $empName, $excelRow, $rowData, $reason) {
+        $sql = "INSERT INTO unmatched_template_rows
+                (template_type, semester, month_name, employee_number, employee_name, excel_row, raw_payload, reason)
+                VALUES (:template_type, :semester, :month_name, :employee_number, :employee_name, :excel_row, :raw_payload, :reason)";
+        $stmt = $db->prepare($sql);
+        $stmt->execute([
+            ':template_type' => $templateKey,
+            ':semester' => $semesterKey,
+            ':month_name' => $monthName,
+            ':employee_number' => $empNum > 0 ? $empNum : null,
+            ':employee_name' => $empName !== '' ? $empName : null,
+            ':excel_row' => $excelRow,
+            ':raw_payload' => json_encode($rowData, JSON_UNESCAPED_UNICODE),
+            ':reason' => $reason
+        ]);
+    }
+
+    private function incidentsCountToPercent($numIncidencias) {
+        $n = (int)$numIncidencias;
+        if ($n === 0) return 100.0;
+        if ($n === 1) return 90.0;
+        if ($n === 2) return 80.0;
+        if ($n === 3) return 70.0;
+        if ($n === 4) return 60.0;
+        return 0.0;
+    }
+
+    /**
+     * Incrementa el contador de incidencias del mes para un usuario
+     * (puede ser un usuario real o un ID negativo sintético para filas no emparejadas).
+     */
+    private function incrementMonthlyIncident($db, $userId, $semesterKey, $monthName, $monthIndex) {
+        $sqlCheckCard = "SELECT id, incidents FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
+        $stmtCheck = $db->prepare($sqlCheckCard);
+        $stmtCheck->execute([':user_id' => $userId, ':semester' => $semesterKey, ':month_name' => $monthName]);
+        $existsCard = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+
+        if (!$existsCard) {
+            $sqlInsCard = "INSERT INTO user_monthly_scorecards (user_id, semester, month_name, month_index, incidents) VALUES (:user_id, :semester, :month_name, :month_index, 1)";
+            $stmtInsCard = $db->prepare($sqlInsCard);
+            $stmtInsCard->execute([
+                ':user_id' => $userId,
+                ':semester' => $semesterKey,
+                ':month_name' => $monthName,
+                ':month_index' => $monthIndex
+            ]);
+        } else {
+            $sqlUpdInc = "UPDATE user_monthly_scorecards SET incidents = incidents + 1 WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
+            $stmtUpdInc = $db->prepare($sqlUpdInc);
+            $stmtUpdInc->execute([':user_id' => $userId, ':semester' => $semesterKey, ':month_name' => $monthName]);
+        }
     }
 
     private function processExcelDataToScorecard($filePath, $templateKey, $semesterNum, $originalName = '') {
@@ -165,7 +218,13 @@ class TemplateController {
             $ssXml = simplexml_load_string($sharedStringsXml);
             if ($ssXml && isset($ssXml->si)) {
                 foreach ($ssXml->si as $si) {
-                    $sharedStrings[] = (string)$si->t;
+                    $text = (string)$si->t;
+                    if ($text === '' && isset($si->r)) {
+                        foreach ($si->r as $r) {
+                            $text .= (string)$r->t;
+                        }
+                    }
+                    $sharedStrings[] = $text;
                 }
             }
         }
@@ -186,7 +245,7 @@ class TemplateController {
             $coord = (string)$c['r'];
             preg_match('/^[A-Z]+/', $coord, $m);
             $colLetter = $m[0] ?? '';
-            
+
             $cellType = (string)$c['t'];
             $cellVal = isset($c->v) ? (string)$c->v : '';
             if ($cellType === 's' && isset($sharedStrings[(int)$cellVal])) {
@@ -196,10 +255,9 @@ class TemplateController {
         }
 
         $validRowCount = 0;
-        $processedSemesters = [];
         $individualRecords = [];
-        
-        $currentYear = '2026';
+
+        $currentYear = '2025';
         if (preg_match('/(20\d{2})/', $originalName, $match)) {
             $currentYear = $match[1];
         } elseif (preg_match('/(20\d{2})/', $filePath, $match)) {
@@ -212,10 +270,6 @@ class TemplateController {
         ];
 
         $db = Database::getInstance();
-        
-        $stmtPos = $db->query("SELECT id FROM positions WHERE name LIKE '%Despachador%' LIMIT 1");
-        $posRow = $stmtPos->fetch(PDO::FETCH_ASSOC);
-        $despachadorPositionId = $posRow ? (int)$posRow['id'] : 1;
 
         $userMap = [];
         $userNameMap = [];
@@ -224,70 +278,49 @@ class TemplateController {
             if (!empty($uRow['employee_number'])) {
                 $userMap[(int)$uRow['employee_number']] = (int)$uRow['id'];
             }
-            $fullNameKey = strtolower(trim($uRow['first_name'] . ' ' . $uRow['last_name_paternal'] . ' ' . ($uRow['last_name_maternal'] ?? '')));
-            $userNameMap[$fullNameKey] = (int)$uRow['id'];
-            $shortNameKey = strtolower(trim($uRow['first_name'] . ' ' . $uRow['last_name_paternal']));
-            $userNameMap[$shortNameKey] = (int)$uRow['id'];
+            $fullNameKey = strtolower(preg_replace('/\s+/', ' ', trim($uRow['first_name'] . ' ' . $uRow['last_name_paternal'] . ' ' . ($uRow['last_name_maternal'] ?? ''))));
+            if ($fullNameKey !== '') {
+                $userNameMap[$fullNameKey] = (int)$uRow['id'];
+            }
+            $shortNameKey = strtolower(preg_replace('/\s+/', ' ', trim($uRow['first_name'] . ' ' . $uRow['last_name_paternal'])));
+            if ($shortNameKey !== '') {
+                $userNameMap[$shortNameKey] = (int)$uRow['id'];
+            }
         }
 
-        $resolveOrCreateUser = function($empNum, $rawEmployeeName) use ($db, $despachadorPositionId, &$userMap, &$userNameMap) {
-            $matchedUserId = $userMap[$empNum] ?? null;
-
-            if (!$matchedUserId && !empty($rawEmployeeName)) {
+        $findExistingUser = function($empNum, $rawEmployeeName) use ($userMap, $userNameMap) {
+            $empNumInt = (int)$empNum;
+            if ($empNumInt > 0 && isset($userMap[$empNumInt])) {
+                return (int)$userMap[$empNumInt];
+            }
+            if (!empty($rawEmployeeName)) {
                 $normExcelName = strtolower(preg_replace('/\s+/', ' ', trim($rawEmployeeName)));
                 if (isset($userNameMap[$normExcelName])) {
-                    $matchedUserId = $userNameMap[$normExcelName];
-                } else {
-                    foreach ($userNameMap as $dbName => $dbId) {
-                        if ($dbName === $normExcelName || str_contains($normExcelName, $dbName) || str_contains($dbName, $normExcelName)) {
-                            $matchedUserId = $dbId;
-                            break;
-                        }
-                    }
+                    return (int)$userNameMap[$normExcelName];
                 }
             }
+            return null;
+        };
 
-            if (!$matchedUserId && !empty($rawEmployeeName)) {
-                $cleanFullName = ucwords(strtolower(preg_replace('/\s+/', ' ', trim($rawEmployeeName))));
-                $nameParts = explode(' ', $cleanFullName);
-                
-                $firstName = $nameParts[0] ?? 'Despachador';
-                $lastNamePaternal = $nameParts[1] ?? 'Nuevo';
-                $lastNameMaternal = isset($nameParts[2]) ? implode(' ', array_slice($nameParts, 2)) : '';
-                
-                $generatedUsername = strtolower($firstName . ($empNum > 0 ? $empNum : rand(100, 999)));
-
-                $insertUserSql = "INSERT INTO users (employee_number, first_name, last_name_paternal, last_name_maternal, username, password, role, area_id, position_id, status) 
-                                  VALUES (:emp_num, :fname, :lname_pat, :lname_mat, :uname, :pwd, 'Collaborator', 1, :pos_id, 'active')";
-                $stmtInsUser = $db->prepare($insertUserSql);
-                $stmtInsUser->execute([
-                    ':emp_num' => $empNum > 0 ? $empNum : null,
-                    ':fname' => $firstName,
-                    ':lname_pat' => $lastNamePaternal,
-                    ':lname_mat' => $lastNameMaternal,
-                    ':uname' => $generatedUsername,
-                    ':pwd' => password_hash('password123', PASSWORD_BCRYPT),
-                    ':pos_id' => $despachadorPositionId
-                ]);
-                
-                $matchedUserId = (int)$db->lastInsertId();
-                if ($empNum > 0) {
-                    $userMap[$empNum] = $matchedUserId;
-                }
-                $userNameMap[strtolower(trim($cleanFullName))] = $matchedUserId;
-            }
-
-            return $matchedUserId;
+        // Genera un ID negativo estable por colaborador/fila no emparejada para acumular en user_monthly_scorecards
+        // sin crear registros en la tabla users ni hacer INNER JOIN con users.
+        $syntheticUserId = function($empNum, $rawEmployeeName, $excelRowNum) {
+            $key = ((int)$empNum > 0)
+                ? 'emp:' . (int)$empNum
+                : ('name:' . strtolower(preg_replace('/\s+/', ' ', trim($rawEmployeeName))) . ':row:' . (int)$excelRowNum);
+            $hash = abs(crc32($key));
+            return -1 * max(1, ($hash % 2000000000));
         };
 
         for ($i = 1; $i < count($rows); $i++) {
             $row = $rows[$i];
+            $excelRowNum = (int)($row['r'] ?? ($i + 1));
             $rowData = [];
             foreach ($row->c as $c) {
                 $coord = (string)$c['r'];
                 preg_match('/^[A-Z]+/', $coord, $m);
                 $colLetter = $m[0] ?? '';
-                
+
                 $headerName = $headerMap[$colLetter] ?? '';
                 if ($headerName === '') continue;
 
@@ -299,7 +332,7 @@ class TemplateController {
                 $rowData[$headerName] = $cellVal;
             }
 
-            if (empty(array_filter($rowData))) {
+            if (empty(array_filter($rowData, fn($v) => $v !== null && trim((string)$v) !== ''))) {
                 continue;
             }
 
@@ -312,123 +345,103 @@ class TemplateController {
                 if (empty($monthName)) { $monthName = 'Enero'; $monthIndex = 1; }
 
                 $semesterKey = ($monthIndex <= 6 ? '1' : '2') . '-' . $currentYear;
-                $processedSemesters[$semesterKey] = true;
 
                 $empNum = intval($rowData['# EMPLEADO'] ?? 0);
                 $rawEmployeeName = trim($rowData['NOMBRE'] ?? '');
 
-                $matchedUserId = $resolveOrCreateUser($empNum, $rawEmployeeName);
+                $matchedUserId = $findExistingUser($empNum, $rawEmployeeName);
+                $isUnmatched = ($matchedUserId === null);
+                $targetUserId = $matchedUserId ?? $syntheticUserId($empNum, $rawEmployeeName, $excelRowNum);
+
+                if ($isUnmatched) {
+                    $this->logUnmatchedRow($db, $templateKey, $semesterKey, $monthName, $empNum, $rawEmployeeName, $excelRowNum, $rowData, 'Usuario no encontrado en users (incluido en acumulado mensual)');
+                }
 
                 $litros = floatval($rowData['LITROS'] ?? 0);
-                $dias = max(1, intval($rowData['DIAS'] ?? 1));
+                $dias = intval($rowData['DIAS'] ?? $rowData['DÍAS'] ?? 0);
                 $meta = floatval($rowData['META'] ?? 2500);
-                
-                $promedioDiario = $litros / $dias;
-                $ventasPct = $meta > 0 ? (($promedioDiario / $meta) * 100) : 0;
+
+                $ventasPct = ($dias > 0 && $meta > 0) ? ((($litros / $dias) / $meta) * 100.0) : 0.0;
                 if ($ventasPct > 999.99) $ventasPct = 999.99;
 
                 $aceitesCount = intval($rowData['ACEITES'] ?? 0);
-                $aceitesPct = ($dias > 0) ? (($aceitesCount / ($dias * 2)) * 100) : 0;
-                if ($aceitesPct > 100.0) $aceitesPct = 100.0;
+                $aceitesPct = ($dias > 0) ? min(100.0, (($aceitesCount / ($dias * 2.0)) * 100.0)) : 0.0;
 
-                // CONSULTAR INCIDENCIAS DESDE LA BITÁCORA EN BD
                 $numIncidencias = 0;
-                if ($matchedUserId) {
-                    $stmtInc = $db->prepare("SELECT incidents FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name LIMIT 1");
-                    $stmtInc->execute([':user_id' => $matchedUserId, ':semester' => $semesterKey, ':month_name' => $monthName]);
-                    $incRow = $stmtInc->fetch(PDO::FETCH_ASSOC);
-                    if ($incRow) {
-                        $numIncidencias = intval($incRow['incidents']);
-                    }
+                $stmtInc = $db->prepare("SELECT incidents FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name LIMIT 1");
+                $stmtInc->execute([':user_id' => $targetUserId, ':semester' => $semesterKey, ':month_name' => $monthName]);
+                $incRow = $stmtInc->fetch(PDO::FETCH_ASSOC);
+                if ($incRow) {
+                    $numIncidencias = intval($incRow['incidents']);
                 }
 
-                // Ajuste de incidencias: 0 incidencias equivale a 0% en la ponderación matemática
-                if ($numIncidencias === 0) $incidenciasPct = 0.0;
-                elseif ($numIncidencias === 1) $incidenciasPct = 90.0;
-                elseif ($numIncidencias === 2) $incidenciasPct = 80.0;
-                elseif ($numIncidencias === 3) $incidenciasPct = 70.0;
-                elseif ($numIncidencias === 4) $incidenciasPct = 60.0;
-                else $incidenciasPct = 0.0;
+                $incidenciasPct = $this->incidentsCountToPercent($numIncidencias);
 
                 $stepVal = floatval($rowData['6 PASOS'] ?? 0);
-                if ($stepVal <= 1.0 && $stepVal > 0) $stepVal = $stepVal * 100;
+                if ($stepVal <= 1.0 && $stepVal > 0) $stepVal = $stepVal * 100.0;
 
                 $perfVal = ($ventasPct * 0.70) + ($aceitesPct * 0.15) + ($incidenciasPct * 0.10) + ($stepVal * 0.05);
 
                 $habitVal = floatval($rowData['ASISTENCIA HÁBITOS'] ?? 0);
-                if ($habitVal <= 1.0 && $habitVal > 0) $habitVal = $habitVal * 100;
+                if ($habitVal <= 1.0 && $habitVal > 0) $habitVal = $habitVal * 100.0;
 
                 $bonusVal = floatval($rowData['BONO PRODUCTIVIDAD'] ?? 0);
-                if ($bonusVal <= 1.0 && $bonusVal > 0) $bonusVal = $bonusVal * 100;
+                if ($bonusVal <= 1.0 && $bonusVal > 0) $bonusVal = $bonusVal * 100.0;
 
-                if ($matchedUserId) {
-                    $individualRecords[] = [
-                        'semester' => $semesterKey,
-                        'month_name' => $monthName,
-                        'month_index' => $monthIndex,
-                        'user_id' => $matchedUserId,
-                        'sales' => $ventasPct,
-                        'performance' => $perfVal,
-                        'attendance_habits' => $habitVal,
-                        'six_steps' => $stepVal,
-                        'productivity_bonus' => $bonusVal,
-                        'oils' => $aceitesCount,
-                        'incidents' => $numIncidencias,
-                        'wrong_loadings' => intval($rowData['CARGAS EQUIVOCADAS'] ?? 0),
-                        'client_complaints' => intval($rowData['QUEJAS DEL CLIENTE'] ?? 0),
-                        'wrong_charges' => intval($rowData['COBROS EQUIVOCADOS'] ?? 0),
-                        'invoices' => intval($rowData['FACTURAS'] ?? 0),
-                        'absences' => intval($rowData['FALTAS'] ?? 0),
-                        'centenarios_received' => intval($rowData['CENTENARIOS RECIBIDOS'] ?? 0),
-                        'centenarios_redeemed' => intval($rowData['CENTENARIOS OTORGADOS'] ?? 0),
-                        'redemption_amount' => floatval($rowData['IMPORTE CANJE'] ?? 0)
-                    ];
-                }
+                $individualRecords[] = [
+                    'semester' => $semesterKey,
+                    'month_name' => $monthName,
+                    'month_index' => $monthIndex,
+                    'user_id' => $targetUserId,
+                    'sales' => $ventasPct,
+                    'performance' => $perfVal,
+                    'attendance_habits' => $habitVal,
+                    'six_steps' => $stepVal,
+                    'productivity_bonus' => $bonusVal,
+                    'oils' => $aceitesCount,
+                    'incidents' => $numIncidencias,
+                    'wrong_loadings' => intval($rowData['CARGAS EQUIVOCADAS'] ?? 0),
+                    'client_complaints' => intval($rowData['QUEJAS DEL CLIENTE'] ?? 0),
+                    'wrong_charges' => intval($rowData['COBROS EQUIVOCADOS'] ?? 0),
+                    'invoices' => intval($rowData['FACTURAS'] ?? 0),
+                    'absences' => intval($rowData['FALTAS'] ?? 0),
+                    'centenarios_received' => intval($rowData['CENTENARIOS RECIBIDOS'] ?? 0),
+                    'centenarios_redeemed' => intval($rowData['CENTENARIOS OTORGADOS'] ?? 0),
+                    'redemption_amount' => floatval($rowData['IMPORTE CANJE'] ?? 0)
+                ];
             }
             elseif ($templateKey === 'bitacora_incidencias') {
                 $rawMonthName = strtoupper(trim($rowData['MES'] ?? $rowData['MES INCIDENCIA'] ?? 'ENERO'));
                 $monthIndex = $monthNameToIndex[$rawMonthName] ?? 1;
                 $monthName = ucwords(strtolower($rawMonthName));
                 $semesterKey = ($monthIndex <= 6 ? '1' : '2') . '-' . $currentYear;
-                $processedSemesters[$semesterKey] = true;
-                
+
                 $empReported = intval($rowData['# EMPLEADO REPORTADO'] ?? $rowData['# EMPLEADO'] ?? 0);
                 $empNameReported = trim($rowData['NOMBRE DEL REPORTADO'] ?? $rowData['NOMBRE'] ?? '');
-                
-                $resolvedId = $resolveOrCreateUser($empReported, $empNameReported);
-                if ($resolvedId) {
-                    $sqlCheckCard = "SELECT id, incidents FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
-                    $stmtCheck = $db->prepare($sqlCheckCard);
-                    $stmtCheck->execute([':user_id' => $resolvedId, ':semester' => $semesterKey, ':month_name' => $monthName]);
-                    $existsCard = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
-                    if (!$existsCard) {
-                        $sqlInsCard = "INSERT INTO user_monthly_scorecards (user_id, semester, month_name, month_index, incidents) VALUES (:user_id, :semester, :month_name, :month_index, 1)";
-                        $stmtInsCard = $db->prepare($sqlInsCard);
-                        $stmtInsCard->execute([
-                            ':user_id' => $resolvedId, 
-                            ':semester' => $semesterKey, 
-                            ':month_name' => $monthName, 
-                            ':month_index' => $monthIndex
-                        ]);
-                    } else {
-                        $sqlUpdInc = "UPDATE user_monthly_scorecards SET incidents = incidents + 1 WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
-                        $stmtUpdInc = $db->prepare($sqlUpdInc);
-                        $stmtUpdInc->execute([':user_id' => $resolvedId, ':semester' => $semesterKey, ':month_name' => $monthName]);
-                    }
+                $resolvedId = $findExistingUser($empReported, $empNameReported);
+                if ($resolvedId === null) {
+                    $this->logUnmatchedRow($db, $templateKey, $semesterKey, $monthName, $empReported, $empNameReported, $excelRowNum, $rowData, 'Reportado no encontrado en users (incluido en acumulado mensual)');
+                    $resolvedId = $syntheticUserId($empReported, $empNameReported, $excelRowNum);
                 }
+
+                $this->incrementMonthlyIncident($db, $resolvedId, $semesterKey, $monthName, $monthIndex);
             }
             elseif ($templateKey === 'calificaciones_360') {
                 $empNum = intval($rowData['# EMPLEADO'] ?? 0);
                 $rawEmployeeName = trim($rowData['NOMBRE'] ?? $rowData['EMPLEADO'] ?? '');
                 $score360 = floatval($rowData['CALIFICACIÓN 360º'] ?? $rowData['CALIFICACION 360'] ?? $rowData['CALIFICACION'] ?? $rowData['EVAL_360'] ?? 0);
-                if ($score360 <= 1.0 && $score360 > 0) $score360 = $score360 * 100;
-                
-                $matchedUserId = $resolveOrCreateUser($empNum, $rawEmployeeName);
-                $semKey = $semesterNum . '-' . $currentYear;
-                $processedSemesters[$semKey] = true;
+                if ($score360 <= 1.0 && $score360 > 0) $score360 = $score360 * 100.0;
 
-                if ($matchedUserId && $score360 > 0) {
+                $matchedUserId = $findExistingUser($empNum, $rawEmployeeName);
+                $semKey = $semesterNum . '-' . $currentYear;
+
+                if ($matchedUserId === null) {
+                    $this->logUnmatchedRow($db, $templateKey, $semKey, null, $empNum, $rawEmployeeName, $excelRowNum, $rowData, 'Colaborador 360 no encontrado en users (incluido en acumulado semestral)');
+                    $matchedUserId = $syntheticUserId($empNum, $rawEmployeeName, $excelRowNum);
+                }
+
+                if ($score360 > 0) {
                     $semMonths = ($semesterNum === '2') ? ['Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'] : ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio'];
                     foreach ($semMonths as $mName) {
                         $mIdx = $monthNameToIndex[strtoupper($mName)] ?? 1;
@@ -463,24 +476,24 @@ class TemplateController {
             elseif ($templateKey === 'proyecto_semestre') {
                 $empNum = intval($rowData['# EMPLEADO'] ?? 0);
                 $rawEmployeeName = trim($rowData['NOMBRE'] ?? $rowData['EMPLEADO'] ?? '');
-                $projVal = floatval($rowData['PROYECTO SEMESTRE 1'] ?? $rowData['PROYECTO SEMESTRE 2'] ?? $rowData['PROYECTO'] ?? $rowData['IMPORTE'] ?? 0);
-                
-                $matchedUserId = $resolveOrCreateUser($empNum, $rawEmployeeName);
-                $semKey = $semesterNum . '-' . $currentYear;
-                $processedSemesters[$semKey] = true;
+                $projVal = floatval($rowData['PROYECTO SEMESTRE 1'] ?? $rowData['PROYECTO SEMESTRE 2'] ?? $rowData['PROYECTO SEMESTRE'] ?? $rowData['PROYECTO'] ?? $rowData['IMPORTE'] ?? 0);
 
-                if ($matchedUserId) {
-                    $sqlProjUser = "UPDATE user_monthly_scorecards SET semester_project_1 = :proj WHERE user_id = :user_id AND semester = :semester";
-                    if ($semesterNum === '2') {
-                        $sqlProjUser = "UPDATE user_monthly_scorecards SET semester_project_2 = :proj WHERE user_id = :user_id AND semester = :semester";
-                    }
-                    $stmtPU = $db->prepare($sqlProjUser);
-                    $stmtPU->execute([':proj' => $projVal, ':user_id' => $matchedUserId, ':semester' => $semKey]);
+                $matchedUserId = $findExistingUser($empNum, $rawEmployeeName);
+                $semKey = $semesterNum . '-' . $currentYear;
+
+                if ($matchedUserId === null) {
+                    $this->logUnmatchedRow($db, $templateKey, $semKey, null, $empNum, $rawEmployeeName, $excelRowNum, $rowData, 'Colaborador proyecto no encontrado en users (incluido en acumulado semestral)');
+                    $matchedUserId = $syntheticUserId($empNum, $rawEmployeeName, $excelRowNum);
                 }
+
+                $sqlProjUser = ($semesterNum === '2')
+                    ? "UPDATE user_monthly_scorecards SET semester_project_2 = :proj WHERE user_id = :user_id AND semester = :semester"
+                    : "UPDATE user_monthly_scorecards SET semester_project_1 = :proj WHERE user_id = :user_id AND semester = :semester";
+                $stmtPU = $db->prepare($sqlProjUser);
+                $stmtPU->execute([':proj' => $projVal, ':user_id' => $matchedUserId, ':semester' => $semKey]);
             }
         }
 
-        // 1. Guardar registros individuales en user_monthly_scorecards
         foreach ($individualRecords as $ind) {
             $uId = $ind['user_id'];
             $semKey = $ind['semester'];
@@ -491,138 +504,6 @@ class TemplateController {
             $this->templateModel->updateUserMonthlyScorecard($semKey, $mName, $mIdx, $uId, $ind);
         }
 
-        // 2. MÉTODO INTELIGENTE DE RECÁLCULO GLOBAL (IGNORANDO LOS CEROS DE USUARIOS INACTIVOS EN VENTAS)
-        foreach (array_keys($processedSemesters) as $semKey) {
-            $this->recalculateSemesterScorecardsMaster($db, $semKey);
-        }
-
         return ['row_count' => max(1, $validRowCount)];
-    }
-
-    private function recalculateSemesterScorecardsMaster($db, $semesterKey) {
-        $months = str_starts_with($semesterKey, '1-') 
-            ? ['Enero' => 1, 'Febrero' => 2, 'Marzo' => 3, 'Abril' => 4, 'Mayo' => 5, 'Junio' => 6]
-            : ['Julio' => 7, 'Agosto' => 8, 'Septiembre' => 9, 'Octubre' => 10, 'Noviembre' => 11, 'Diciembre' => 12];
-
-        foreach ($months as $monthName => $monthIndex) {
-            $sqlAgg = "SELECT 
-                        AVG(NULLIF(sales, 0)) as avg_sales,
-                        AVG(NULLIF(performance, 0)) as avg_performance,
-                        SUM(incidents) as sum_incidents,
-                        AVG(NULLIF(attendance_habits, 0)) as avg_habits,
-                        SUM(wrong_loadings) as sum_wrong_loadings,
-                        AVG(NULLIF(six_steps, 0)) as avg_six_steps,
-                        SUM(client_complaints) as sum_client_complaints,
-                        SUM(wrong_charges) as sum_wrong_charges,
-                        SUM(oils) as sum_oils,
-                        SUM(invoices) as sum_invoices,
-                        AVG(NULLIF(productivity_bonus, 0)) as avg_bonus,
-                        SUM(absences) as sum_absences,
-                        SUM(centenarios_received) as sum_cent_rec,
-                        SUM(centenarios_redeemed) as sum_cent_red,
-                        SUM(redemption_amount) as sum_red_amt,
-                        AVG(NULLIF(eval_360, 0)) as avg_360,
-                        SUM(semester_project_1) as sum_proj_1,
-                        SUM(semester_project_2) as sum_proj_2
-                       FROM user_monthly_scorecards 
-                       WHERE semester = :semester AND month_name = :month_name";
-
-            $stmtAgg = $db->prepare($sqlAgg);
-            $stmtAgg->execute([':semester' => $semesterKey, ':month_name' => $monthName]);
-            $agg = $stmtAgg->fetch(PDO::FETCH_ASSOC);
-
-            if ($agg && $agg['avg_sales'] !== null) {
-                $salesVal = floatval($agg['avg_sales']);
-                if ($salesVal > 0 && $salesVal <= 1.0) $salesVal = $salesVal * 100;
-
-                $perfVal = floatval($agg['avg_performance']);
-                if ($perfVal > 0 && $perfVal <= 1.0) $perfVal = $perfVal * 100;
-
-                $sqlCheck = "SELECT id FROM monthly_scorecards WHERE semester = :semester AND month_name = :month_name";
-                $stmtChk = $db->prepare($sqlCheck);
-                $stmtChk->execute([':semester' => $semesterKey, ':month_name' => $monthName]);
-                $exists = $stmtChk->fetch(PDO::FETCH_ASSOC);
-
-                if ($exists) {
-                    $sqlUpd = "UPDATE monthly_scorecards SET 
-                               sales = :sales,
-                               performance = :performance,
-                               incidents = :incidents,
-                               attendance_habits = :habits,
-                               wrong_loadings = :wrong_loadings,
-                               six_steps = :six_steps,
-                               client_complaints = :client_complaints,
-                               wrong_charges = :wrong_charges,
-                               oils = :oils,
-                               invoices = :invoices,
-                               productivity_bonus = :bonus,
-                               absences = :absences,
-                               centenarios_received = :cent_rec,
-                               centenarios_redeemed = :cent_red,
-                               redemption_amount = :red_amt,
-                               eval_360 = :eval_360,
-                               semester_project_1 = :proj_1,
-                               semester_project_2 = :proj_2
-                               WHERE semester = :semester AND month_name = :month_name";
-                    $stmtU = $db->prepare($sqlUpd);
-                    $stmtU->execute([
-                        ':sales' => $salesVal,
-                        ':performance' => $perfVal,
-                        ':incidents' => $agg['sum_incidents'] ?? 0,
-                        ':habits' => $agg['avg_habits'] ?? 0,
-                        ':wrong_loadings' => $agg['sum_wrong_loadings'] ?? 0,
-                        ':six_steps' => $agg['avg_six_steps'] ?? 0,
-                        ':client_complaints' => $agg['sum_client_complaints'] ?? 0,
-                        ':wrong_charges' => $agg['sum_wrong_charges'] ?? 0,
-                        ':oils' => $agg['sum_oils'] ?? 0,
-                        ':invoices' => $agg['sum_invoices'] ?? 0,
-                        ':bonus' => $agg['avg_bonus'] ?? 0,
-                        ':absences' => $agg['sum_absences'] ?? 0,
-                        ':cent_rec' => $agg['sum_cent_rec'] ?? 0,
-                        ':cent_red' => $agg['sum_cent_red'] ?? 0,
-                        ':red_amt' => $agg['sum_red_amt'] ?? 0,
-                        ':eval_360' => $agg['avg_360'] ?? 0,
-                        ':proj_1' => $agg['sum_proj_1'] ?? 0,
-                        ':proj_2' => $agg['sum_proj_2'] ?? 0,
-                        ':semester' => $semesterKey,
-                        ':month_name' => $monthName
-                    ]);
-                } else {
-                    $sqlIns = "INSERT INTO monthly_scorecards 
-                               (semester, month_name, month_index, sales, performance, incidents, attendance_habits, 
-                                wrong_loadings, six_steps, client_complaints, wrong_charges, oils, invoices, 
-                                productivity_bonus, absences, centenarios_received, centenarios_redeemed, 
-                                redemption_amount, eval_360, semester_project_1, semester_project_2) 
-                               VALUES 
-                               (:semester, :month_name, :month_index, :sales, :performance, :incidents, :habits, 
-                                :wrong_loadings, :six_steps, :client_complaints, :wrong_charges, :oils, :invoices, 
-                                :bonus, :absences, :cent_rec, :cent_red, :red_amt, :eval_360, :proj_1, :proj_2)";
-                    $stmtI = $db->prepare($sqlIns);
-                    $stmtI->execute([
-                        ':semester' => $semesterKey,
-                        ':month_name' => $monthName,
-                        ':month_index' => $monthIndex,
-                        ':sales' => $salesVal,
-                        ':performance' => $perfVal,
-                        ':incidents' => $agg['sum_incidents'] ?? 0,
-                        ':habits' => $agg['avg_habits'] ?? 0,
-                        ':wrong_loadings' => $agg['sum_wrong_loadings'] ?? 0,
-                        ':six_steps' => $agg['avg_six_steps'] ?? 0,
-                        ':client_complaints' => $agg['sum_client_complaints'] ?? 0,
-                        ':wrong_charges' => $agg['sum_wrong_charges'] ?? 0,
-                        ':oils' => $agg['sum_oils'] ?? 0,
-                        ':invoices' => $agg['sum_invoices'] ?? 0,
-                        ':bonus' => $agg['avg_bonus'] ?? 0,
-                        ':absences' => $agg['sum_absences'] ?? 0,
-                        ':cent_rec' => $agg['sum_cent_rec'] ?? 0,
-                        ':cent_red' => $agg['sum_cent_red'] ?? 0,
-                        ':red_amt' => $agg['sum_red_amt'] ?? 0,
-                        ':eval_360' => $agg['avg_360'] ?? 0,
-                        ':proj_1' => $agg['sum_proj_1'] ?? 0,
-                        ':proj_2' => $agg['sum_proj_2'] ?? 0
-                    ]);
-                }
-            }
-        }
     }
 }
