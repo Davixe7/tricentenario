@@ -144,8 +144,8 @@ class TemplateController {
 
     private function logUnmatchedRow($db, $templateKey, $semesterKey, $monthName, $empNum, $empName, $excelRow, $rowData, $reason) {
         $sql = "INSERT INTO unmatched_template_rows
-                (template_type, semester, month_name, employee_number, employee_name, excel_row, raw_payload, reason)
-                VALUES (:template_type, :semester, :month_name, :employee_number, :employee_name, :excel_row, :raw_payload, :reason)";
+                (template_type, semester, month_name, employee_number, employee_name, row_number, raw_payload, reason)
+                VALUES (:template_type, :semester, :month_name, :employee_number, :employee_name, :row_number, :raw_payload, :reason)";
         $stmt = $db->prepare($sql);
         $stmt->execute([
             ':template_type' => $templateKey,
@@ -153,7 +153,7 @@ class TemplateController {
             ':month_name' => $monthName,
             ':employee_number' => $empNum > 0 ? $empNum : null,
             ':employee_name' => $empName !== '' ? $empName : null,
-            ':excel_row' => $excelRow,
+            ':row_number' => $excelRow,
             ':raw_payload' => json_encode($rowData, JSON_UNESCAPED_UNICODE),
             ':reason' => $reason
         ]);
