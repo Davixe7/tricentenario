@@ -411,18 +411,18 @@
                             </tr>
                             <tr class="table-warning">
                                 <td class="text-dark">Finales (Editable)</td>
-                                <td><input type="text" name="final_sales" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_sales']) ? number_format((float)$semesterFinals['final_sales'], 2, ',', '.') . '%' : number_format($tSales, 2, ',', '.') . '%' ?>"></td>
-                                <td><input type="text" name="final_performance" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_performance']) ? number_format((float)$semesterFinals['final_performance'], 2, ',', '.') . '%' : number_format($tPerf, 2, ',', '.') . '%' ?>"></td>
-                                <td><input type="text" name="final_incidents" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_incidents']) ? (int)$semesterFinals['final_incidents'] : (int)$totals['incidents'] ?>"></td>
-                                <td><input type="text" name="final_attendance_habits" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_attendance_habits']) ? number_format((float)$semesterFinals['final_attendance_habits'], 2, ',', '.') . '%' : number_format($tHabits, 2, ',', '.') . '%' ?>"></td>
-                                <td><input type="text" name="final_wrong_loadings" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_wrong_loadings']) ? (int)$semesterFinals['final_wrong_loadings'] : (int)$totals['wrong_loadings'] ?>"></td>
-                                <td><input type="text" name="final_six_steps" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_six_steps']) ? number_format((float)$semesterFinals['final_six_steps'], 2, ',', '.') . '%' : number_format($tSteps, 2, ',', '.') . '%' ?>"></td>
-                                <td><input type="text" name="final_client_complaints" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_client_complaints']) ? (int)$semesterFinals['final_client_complaints'] : (int)$totals['client_complaints'] ?>"></td>
-                                <td><input type="text" name="final_wrong_charges" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_wrong_charges']) ? (int)$semesterFinals['final_wrong_charges'] : (int)$totals['wrong_charges'] ?>"></td>
-                                <td><input type="text" name="final_oils" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_oils']) ? (int)$semesterFinals['final_oils'] : (int)$totals['oils'] ?>"></td>
-                                <td><input type="text" name="final_invoices" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_invoices']) ? (int)$semesterFinals['final_invoices'] : (int)$totals['invoices'] ?>"></td>
-                                <td><input type="text" name="final_productivity_bonus" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_productivity_bonus']) ? number_format((float)$semesterFinals['final_productivity_bonus'], 2, ',', '.') . '%' : number_format($tProd, 2, ',', '.') . '%' ?>"></td>
-                                <td><input type="text" name="final_absences" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_absences']) ? (int)$semesterFinals['final_absences'] : (int)$totals['absences'] ?>"></td>
+                                <td><input type="text" name="final_sales" data-format="pct" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_sales']) ? number_format((float)$semesterFinals['final_sales'], 2, ',', '.') . '%' : number_format($tSales, 2, ',', '.') . '%' ?>"></td>
+                                <td><input type="text" name="final_performance" data-format="pct" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_performance']) ? number_format((float)$semesterFinals['final_performance'], 2, ',', '.') . '%' : number_format($tPerf, 2, ',', '.') . '%' ?>"></td>
+                                <td><input type="text" name="final_incidents" data-format="int" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_incidents']) ? (int)$semesterFinals['final_incidents'] : (int)$totals['incidents'] ?>"></td>
+                                <td><input type="text" name="final_attendance_habits" data-format="pct" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_attendance_habits']) ? number_format((float)$semesterFinals['final_attendance_habits'], 2, ',', '.') . '%' : number_format($tHabits, 2, ',', '.') . '%' ?>"></td>
+                                <td><input type="text" name="final_wrong_loadings" data-format="int" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_wrong_loadings']) ? (int)$semesterFinals['final_wrong_loadings'] : (int)$totals['wrong_loadings'] ?>"></td>
+                                <td><input type="text" name="final_six_steps" data-format="pct" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_six_steps']) ? number_format((float)$semesterFinals['final_six_steps'], 2, ',', '.') . '%' : number_format($tSteps, 2, ',', '.') . '%' ?>"></td>
+                                <td><input type="text" name="final_client_complaints" data-format="int" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_client_complaints']) ? (int)$semesterFinals['final_client_complaints'] : (int)$totals['client_complaints'] ?>"></td>
+                                <td><input type="text" name="final_wrong_charges" data-format="int" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_wrong_charges']) ? (int)$semesterFinals['final_wrong_charges'] : (int)$totals['wrong_charges'] ?>"></td>
+                                <td><input type="text" name="final_oils" data-format="int" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_oils']) ? (int)$semesterFinals['final_oils'] : (int)$totals['oils'] ?>"></td>
+                                <td><input type="text" name="final_invoices" data-format="int" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_invoices']) ? (int)$semesterFinals['final_invoices'] : (int)$totals['invoices'] ?>"></td>
+                                <td><input type="text" name="final_productivity_bonus" data-format="pct" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_productivity_bonus']) ? number_format((float)$semesterFinals['final_productivity_bonus'], 2, ',', '.') . '%' : number_format($tProd, 2, ',', '.') . '%' ?>"></td>
+                                <td><input type="text" name="final_absences" data-format="int" class="form-control form-control-sm text-center fw-bold bg-white" value="<?= isset($semesterFinals['final_absences']) ? (int)$semesterFinals['final_absences'] : (int)$totals['absences'] ?>"></td>
                             </tr>
                         </tfoot>
                     </table>
@@ -478,7 +478,7 @@
                                 $indPerfVal = $hasFinalPerf ? round((float)$semesterFinals['final_performance'], 2) : round((float)$tPerf, 2);
                                 $eval360IndVal = round((float)($summaryData['avg_eval_360'] ?? 0), 2);
                                 $computedQual = round(($indPerfVal * 0.5) + ($eval360IndVal * 0.5), 2);
-                                    $valQual = (isset($semesterFinals['final_qualification']) && $semesterFinals['final_qualification'] !== '')
+                                $valQual = (isset($semesterFinals['final_qualification']) && $semesterFinals['final_qualification'] !== '')
                                     ? round((float)$semesterFinals['final_qualification'], 2)
                                     : $computedQual;
                                 $projKey = ($semesterNum === '2') ? 'total_semester_project_2' : 'total_semester_project_1';
@@ -496,11 +496,11 @@
                             </div>
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Calificación Individual</span>
-                                <input type="text" name="final_qualification" id="finalQualificationInput" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 80px; padding: 1px;" value="<?= number_format($valQual, 2, ',', '.') ?>%">
+                                <input type="text" name="final_qualification" id="finalQualificationInput" data-format="pct" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 80px; padding: 1px;" value="<?= number_format($valQual, 2, ',', '.') ?>%">
                             </div>
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Proyecto S<?= $semesterNum ?></span>
-                                <input type="text" name="final_semester_project" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 85px; padding: 1px;" value="$<?= number_format($valProj, 2) ?>">
+                                <input type="text" name="final_semester_project" data-format="money" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 85px; padding: 1px;" value="$<?= number_format($valProj, 2) ?>">
                             </div>
                         </div>
                     </div>
@@ -520,19 +520,62 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    const form = document.getElementById('individualScorecardForm');
     const finalPerfInput = document.querySelector('input[name="final_performance"]');
     const indPerfLabel = document.getElementById('indPerformanceLabel');
     const ind360Label = document.getElementById('indEval360');
     const qualInput = document.getElementById('finalQualificationInput');
 
     const parseNum = (str) => {
-        if (!str) return 0;
-        const clean = String(str).replace(/[^0-9,.-]/g, '').replace(',', '.');
-        const num = parseFloat(clean);
+        if (str === null || str === undefined) return 0;
+        let s = String(str).replace(/[$%\s]/g, '').trim();
+        if (!s || s === '-') return 0;
+
+        if (s.includes(',')) {
+            s = s.replace(/\./g, '').replace(',', '.');
+        } else if ((s.match(/\./g) || []).length > 1) {
+            const parts = s.split('.');
+            const dec = parts.pop();
+            s = parts.join('') + '.' + dec;
+        }
+
+        const num = parseFloat(s);
         return isNaN(num) ? 0 : num;
     };
 
     const fmtPct = (num) => num.toFixed(2).replace('.', ',') + '%';
+    const fmtInt = (num) => String(Math.round(num));
+    const fmtMoney = (num) => '$' + num.toFixed(2);
+
+    const sanitizeTyping = (input) => {
+        const cleaned = input.value.replace(/[^0-9,.-]/g, '');
+        if (input.value !== cleaned) {
+            input.value = cleaned;
+        }
+    };
+
+    const formatOnBlur = (input) => {
+        const mode = input.getAttribute('data-format');
+        const val = parseNum(input.value);
+        if (mode === 'pct') {
+            input.value = fmtPct(val);
+        } else if (mode === 'int') {
+            input.value = fmtInt(val);
+        } else if (mode === 'money') {
+            input.value = fmtMoney(val);
+        }
+    };
+
+    const formattedInputs = Array.from(document.querySelectorAll('#individualScorecardForm input[data-format]'));
+
+    formattedInputs.forEach((input) => {
+        input.addEventListener('input', function() {
+            sanitizeTyping(this);
+        });
+        input.addEventListener('blur', function() {
+            formatOnBlur(this);
+        });
+    });
 
     if (finalPerfInput && indPerfLabel && qualInput) {
         finalPerfInput.addEventListener('input', function() {
@@ -541,6 +584,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const qual = (perf * 0.5) + (e360 * 0.5);
             indPerfLabel.textContent = fmtPct(perf);
             qualInput.value = fmtPct(qual);
+        });
+    }
+
+    if (form) {
+        form.addEventListener('submit', function() {
+            formattedInputs.forEach((input) => formatOnBlur(input));
         });
     }
 });

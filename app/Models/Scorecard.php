@@ -202,8 +202,19 @@ class Scorecard {
     public function saveSemesterFinals($userId, $semester, $data) {
         $cleanNum = function($val) {
             if ($val === null || $val === '') return 0;
-            $val = str_replace(['$', '%', ',', ' '], '', (string)$val);
-            return is_numeric($val) ? floatval($val) : 0;
+            $s = str_replace(['$', '%', ' '], '', trim((string)$val));
+            if ($s === '' || $s === '-') return 0;
+
+            if (strpos($s, ',') !== false) {
+                $s = str_replace('.', '', $s);
+                $s = str_replace(',', '.', $s);
+            } elseif (substr_count($s, '.') > 1) {
+                $parts = explode('.', $s);
+                $dec = array_pop($parts);
+                $s = implode('', $parts) . '.' . $dec;
+            }
+
+            return is_numeric($s) ? floatval($s) : 0;
         };
 
         $sql = "INSERT INTO user_semester_finals (
