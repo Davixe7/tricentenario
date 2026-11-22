@@ -191,6 +191,102 @@ class TemplateController {
         }
     }
 
+    private function recalculateUserSemesterFinal($db, $userId, $semesterKey) {
+        $sqlRows = "SELECT sales, performance, incidents, attendance_habits, wrong_loadings,
+                           six_steps, client_complaints, wrong_charges, oils, invoices,
+                           productivity_bonus, absences, eval_360
+                    FROM user_monthly_scorecards
+                    WHERE user_id = :user_id AND semester = :semester";
+        $stmtRows = $db->prepare($sqlRows);
+        $stmtRows->execute([':user_id' => $userId, ':semester' => $semesterKey]);
+        $rows = $stmtRows->fetchAll(PDO::FETCH_ASSOC);
+
+        $count = count($rows);
+        $div = max(1, $count);
+
+        $sumSales = 0.0;
+        $sumPerf = 0.0;
+        $sumHabits = 0.0;
+        $sumSteps = 0.0;
+        $sumProd = 0.0;
+        $sumEval360 = 0.0;
+        $sumIncidents = 0;
+        $sumWrongLoadings = 0;
+        $sumClientComplaints = 0;
+        $sumWrongCharges = 0;
+        $sumOils = 0;
+        $sumInvoices = 0;
+        $sumAbsences = 0;
+
+        foreach ($rows as $r) {
+            $sumSales += (float)($r['sales'] ?? 0);
+            $sumPerf += (float)($r['performance'] ?? 0);
+            $sumHabits += (float)($r['attendance_habits'] ?? 0);
+            $sumSteps += (float)($r['six_steps'] ?? 0);
+            $sumProd += (float)($r['productivity_bonus'] ?? 0);
+            $sumEval360 += (float)($r['eval_360'] ?? 0);
+            $sumIncidents += (int)($r['incidents'] ?? 0);
+            $sumWrongLoadings += (int)($r['wrong_loadings'] ?? 0);
+            $sumClientComplaints += (int)($r['client_complaints'] ?? 0);
+            $sumWrongCharges += (int)($r['wrong_charges'] ?? 0);
+            $sumOils += (int)($r['oils'] ?? 0);
+            $sumInvoices += (int)($r['invoices'] ?? 0);
+            $sumAbsences += (int)($r['absences'] ?? 0);
+        }
+
+        $finalSales = $count > 0 ? round($sumSales / $div, 2) : 0.0;
+        $finalPerf = $count > 0 ? round($sumPerf / $div, 2) : 0.0;
+        $finalHabits = $count > 0 ? round($sumHabits / $div, 2) : 0.0;
+        $finalSteps = $count > 0 ? round($sumSteps / $div, 2) : 0.0;
+        $finalProd = $count > 0 ? round($sumProd / $div, 2) : 0.0;
+        $avgEval360 = $count > 0 ? round($sumEval360 / $div, 2) : 0.0;
+        $finalQual = round(($finalPerf * 0.5) + ($avgEval360 * 0.5), 2);
+
+        $sql = "INSERT INTO user_semester_finals (
+                    user_id, semester, final_sales, final_performance, final_incidents,
+                    final_attendance_habits, final_wrong_loadings, final_six_steps,
+                    final_client_complaints, final_wrong_charges, final_oils, final_invoices,
+                    final_productivity_bonus, final_absences, final_qualification
+                ) VALUES (
+                    :user_id, :semester, :final_sales, :final_performance, :final_incidents,
+                    :final_attendance_habits, :final_wrong_loadings, :final_six_steps,
+                    :final_client_complaints, :final_wrong_charges, :final_oils, :final_invoices,
+                    :final_productivity_bonus, :final_absences, :final_qualification
+                ) ON DUPLICATE KEY UPDATE
+                    final_sales = VALUES(final_sales),
+                    final_performance = VALUES(final_performance),
+                    final_incidents = VALUES(final_incidents),
+                    final_attendance_habits = VALUES(final_attendance_habits),
+                    final_wrong_loadings = VALUES(final_wrong_loadings),
+                    final_six_steps = VALUES(final_six_steps),
+                    final_client_complaints = VALUES(final_client_complaints),
+                    final_wrong_charges = VALUES(final_wrong_charges),
+                    final_oils = VALUES(final_oils),
+                    final_invoices = VALUES(final_invoices),
+                    final_productivity_bonus = VALUES(final_productivity_bonus),
+                    final_absences = VALUES(final_absences),
+                    final_qualification = VALUES(final_qualification)";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([
+            ':user_id' => $userId,
+            ':semester' => $semesterKey,
+            ':final_sales' => $finalSales,
+            ':final_performance' => $finalPerf,
+            ':final_incidents' => $sumIncidents,
+            ':final_attendance_habits' => $finalHabits,
+            ':final_wrong_loadings' => $sumWrongLoadings,
+            ':final_six_steps' => $finalSteps,
+            ':final_client_complaints' => $sumClientComplaints,
+            ':final_wrong_charges' => $sumWrongCharges,
+            ':final_oils' => $sumOils,
+            ':final_invoices' => $sumInvoices,
+            ':final_productivity_bonus' => $finalProd,
+            ':final_absences' => $sumAbsences,
+            ':final_qualification' => $finalQual
+        ]);
+    }
+
     private function processExcelDataToScorecard($filePath, $templateKey, $semesterNum, $originalName = '') {
         if (!class_exists('ZipArchive')) {
             return ['row_count' => 0];
@@ -252,6 +348,7 @@ class TemplateController {
 
         $validRowCount = 0;
         $individualRecords = [];
+        $touchedUserSemesters = [];
 
         $currentYear = '2025';
         if (preg_match('/(20\d{2})/', $originalName, $match)) {
@@ -410,6 +507,7 @@ class TemplateController {
                 }
 
                 $this->incrementMonthlyIncident($db, $resolvedId, $semesterKey, $monthName, $monthIndex);
+                $touchedUserSemesters[$resolvedId . '|' . $semesterKey] = [$resolvedId, $semesterKey];
             }
             elseif ($templateKey === 'calificaciones_360') {
                 $empNum = intval($rowData['# EMPLEADO'] ?? 0);
@@ -455,6 +553,7 @@ class TemplateController {
                             ]);
                         }
                     }
+                    $touchedUserSemesters[$matchedUserId . '|' . $semKey] = [$matchedUserId, $semKey];
                 }
             }
             elseif ($templateKey === 'proyecto_semestre') {
@@ -479,6 +578,7 @@ class TemplateController {
                     ':semester' => $semKey,
                     ':proj' => $projVal
                 ]);
+                $touchedUserSemesters[$matchedUserId . '|' . $semKey] = [$matchedUserId, $semKey];
             }
         }
 
@@ -490,6 +590,11 @@ class TemplateController {
             unset($ind['user_id'], $ind['semester'], $ind['month_name'], $ind['month_index']);
 
             $this->templateModel->updateUserMonthlyScorecard($semKey, $mName, $mIdx, $uId, $ind);
+            $touchedUserSemesters[$uId . '|' . $semKey] = [$uId, $semKey];
+        }
+
+        foreach ($touchedUserSemesters as [$uId, $semKey]) {
+            $this->recalculateUserSemesterFinal($db, $uId, $semKey);
         }
 
         return ['row_count' => max(1, $validRowCount)];
