@@ -169,9 +169,6 @@ class TemplateController {
         return 0.0;
     }
 
-    /**
-     * Incrementa el contador de incidencias del mes para un usuario existente en `users`.
-     */
     private function incrementMonthlyIncident($db, $userId, $semesterKey, $monthName, $monthIndex) {
         $sqlCheckCard = "SELECT id, incidents FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester AND month_name = :month_name";
         $stmtCheck = $db->prepare($sqlCheckCard);
@@ -473,11 +470,15 @@ class TemplateController {
                     continue;
                 }
 
-                $sqlProjUser = ($semesterNum === '2')
-                    ? "UPDATE user_monthly_scorecards SET semester_project_2 = :proj WHERE user_id = :user_id AND semester = :semester"
-                    : "UPDATE user_monthly_scorecards SET semester_project_1 = :proj WHERE user_id = :user_id AND semester = :semester";
-                $stmtPU = $db->prepare($sqlProjUser);
-                $stmtPU->execute([':proj' => $projVal, ':user_id' => $matchedUserId, ':semester' => $semKey]);
+                $sqlProj = "INSERT INTO user_semester_finals (user_id, semester, final_semester_project)
+                            VALUES (:user_id, :semester, :proj)
+                            ON DUPLICATE KEY UPDATE final_semester_project = VALUES(final_semester_project)";
+                $stmtPU = $db->prepare($sqlProj);
+                $stmtPU->execute([
+                    ':user_id' => $matchedUserId,
+                    ':semester' => $semKey,
+                    ':proj' => $projVal
+                ]);
             }
         }
 

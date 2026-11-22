@@ -100,8 +100,8 @@
     }
 
     .bg-success, .bg-warning, .bg-danger, .bg-primary, .bg-dark, .table-primary, .table-warning {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 
     .row {
@@ -473,30 +473,34 @@
                     <div class="card border-0 shadow-sm h-100">
                         <div class="card-header bg-primary text-white fw-bold text-center py-1 small">CÁLCULOS GENERALES</div>
                         <div class="card-body py-1 d-flex align-items-center justify-content-around">
+                            <?php
+                                $hasFinalPerf = isset($semesterFinals['final_performance']) && $semesterFinals['final_performance'] !== '' && (float)$semesterFinals['final_performance'] > 0;
+                                $indPerfVal = $hasFinalPerf ? round((float)$semesterFinals['final_performance'], 2) : round((float)$tPerf, 2);
+                                $eval360IndVal = round((float)($summaryData['avg_eval_360'] ?? 0), 2);
+                                $computedQual = round(($indPerfVal * 0.5) + ($eval360IndVal * 0.5), 2);
+                                    $valQual = (isset($semesterFinals['final_qualification']) && $semesterFinals['final_qualification'] !== '')
+                                    ? round((float)$semesterFinals['final_qualification'], 2)
+                                    : $computedQual;
+                                $projKey = ($semesterNum === '2') ? 'total_semester_project_2' : 'total_semester_project_1';
+                                $valProj = isset($semesterFinals['final_semester_project']) && (float)$semesterFinals['final_semester_project'] > 0
+                                    ? (float)$semesterFinals['final_semester_project']
+                                    : (float)($summaryData[$projKey] ?? 0);
+                            ?>
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Desempeño General</span>
                                 <span class="fw-bold text-dark"><?= number_format((float)($generalSummaryData['avg_performance'] ?? 0), 2, ',', '.') ?>%</span>
                             </div>
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Desempeño Individual</span>
-                                <span class="fw-bold text-dark"><?= number_format($tPerf, 2, ',', '.') ?>%</span>
+                                <span class="fw-bold text-dark" id="indPerformanceLabel"><?= number_format($indPerfVal, 2, ',', '.') ?>%</span>
                             </div>
                             <div class="text-center">
-                                <span class="small text-muted d-block" style="font-size: 7.5px;">Calificación Final</span>
-                                <?php 
-                                    $finalPerfVal = isset($semesterFinals['final_performance']) ? floatval($semesterFinals['final_performance']) : $tPerf;
-                                    $eval360IndVal = floatval($summaryData['avg_eval_360'] ?? 0);
-                                    $defaultQual = round(($finalPerfVal * 0.5) + ($eval360IndVal * 0.5), 2);
-                                    $valQual = isset($semesterFinals['final_qualification']) ? round((float)$semesterFinals['final_qualification'], 2) : $defaultQual;
-                                ?>
-                                <input type="text" name="final_qualification" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 80px; padding: 1px;" value="<?= number_format($valQual, 2, ',', '.') ?>%">
+                                <span class="small text-muted d-block" style="font-size: 7.5px;">Calificación Individual</span>
+                                <input type="text" name="final_qualification" id="finalQualificationInput" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 80px; padding: 1px;" value="<?= number_format($valQual, 2, ',', '.') ?>%">
                             </div>
                             <div class="text-center">
                                 <span class="small text-muted d-block" style="font-size: 7.5px;">Proyecto S<?= $semesterNum ?></span>
-                                <?php 
-                                    $valProj = isset($semesterFinals['final_semester_project']) ? $semesterFinals['final_semester_project'] : ($summaryData['total_semester_project_1'] ?? 0);
-                                ?>
-                                <input type="text" name="final_semester_project" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 85px; padding: 1px;" value="$<?= number_format((float)$valProj, 2) ?>">
+                                <input type="text" name="final_semester_project" class="form-control form-control-sm text-center fw-bold bg-light" style="width: 85px; padding: 1px;" value="$<?= number_format($valProj, 2) ?>">
                             </div>
                         </div>
                     </div>
@@ -513,6 +517,30 @@ document.addEventListener('DOMContentLoaded', function() {
         semesterSelectInd.addEventListener('change', function() {
             const selectedSemester = this.value;
             window.location.href = '<?= BASE_URL ?>/scorecard/individuals?user_id=<?= $selectedUserId ?>&semester=' + selectedSemester + '&status=' + encodeURIComponent('<?= $statusFilter ?>') + '&limit=' + encodeURIComponent('<?= $limit ?>');
+        });
+    }
+
+    const finalPerfInput = document.querySelector('input[name="final_performance"]');
+    const indPerfLabel = document.getElementById('indPerformanceLabel');
+    const ind360Label = document.getElementById('indEval360');
+    const qualInput = document.getElementById('finalQualificationInput');
+
+    const parseNum = (str) => {
+        if (!str) return 0;
+        const clean = String(str).replace(/[^0-9,.-]/g, '').replace(',', '.');
+        const num = parseFloat(clean);
+        return isNaN(num) ? 0 : num;
+    };
+
+    const fmtPct = (num) => num.toFixed(2).replace('.', ',') + '%';
+
+    if (finalPerfInput && indPerfLabel && qualInput) {
+        finalPerfInput.addEventListener('input', function() {
+            const perf = parseNum(this.value);
+            const e360 = ind360Label ? parseNum(ind360Label.textContent) : 0;
+            const qual = (perf * 0.5) + (e360 * 0.5);
+            indPerfLabel.textContent = fmtPct(perf);
+            qualInput.value = fmtPct(qual);
         });
     }
 });

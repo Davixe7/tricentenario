@@ -199,7 +199,7 @@
                             : ($summaryData['total_semester_project_1'] ?? 0);
                     ?>
                     <span class="small text-muted d-block">Proyecto S<?= $semesterNum ?></span>
-                    <span class="fs-6 fw-bold text-dark">$<?= number_format($projectVal, 2) ?></span>
+                    <span class="fs-6 fw-bold text-dark">$<?= number_format((float)$projectVal, 2) ?></span>
                 </div>
             </div>
         </div>

@@ -70,7 +70,7 @@ class Scorecard {
 
     /**
      * Resumen semestral computado a partir de los meses calculados y
-     * las calificaciones finales capturadas en user_semester_finals.
+     * las calificaciones/proyectos semestrales en user_semester_finals.
      */
     public function getSemesterSummary($semester) {
         $monthlyRows = $this->getBySemester($semester);
@@ -82,8 +82,6 @@ class Scorecard {
         $totalCentRec = 0;
         $totalCentRed = 0;
         $totalRedAmt = 0.0;
-        $sumProj1 = 0.0;
-        $sumProj2 = 0.0;
 
         foreach ($monthlyRows as $m) {
             $sumSales += (float)($m['sales'] ?? 0);
@@ -92,9 +90,15 @@ class Scorecard {
             $totalCentRec += (int)($m['centenarios_received'] ?? 0);
             $totalCentRed += (int)($m['centenarios_redeemed'] ?? 0);
             $totalRedAmt += (float)($m['redemption_amount'] ?? 0);
-            $sumProj1 += (float)($m['semester_project_1'] ?? 0);
-            $sumProj2 += (float)($m['semester_project_2'] ?? 0);
         }
+
+        $sqlProj = "SELECT COALESCE(SUM(final_semester_project), 0) AS total_proj
+                    FROM user_semester_finals
+                    WHERE semester = :semester";
+        $stmtProj = $this->db->prepare($sqlProj);
+        $stmtProj->execute([':semester' => $semester]);
+        $projRow = $stmtProj->fetch(PDO::FETCH_ASSOC);
+        $totalProj = round((float)($projRow['total_proj'] ?? 0), 2);
 
         $sql360 = "SELECT AVG(NULLIF(ums.eval_360, 0)) AS avg_eval_360
                    FROM user_monthly_scorecards ums
@@ -123,8 +127,8 @@ class Scorecard {
             'total_centenarios_redeemed' => $totalCentRed,
             'total_redemption_amount' => round($totalRedAmt, 2),
             'avg_eval_360' => $avg360,
-            'total_semester_project_1' => round($sumProj1, 2),
-            'total_semester_project_2' => round($sumProj2, 2),
+            'total_semester_project_1' => $totalProj,
+            'total_semester_project_2' => $totalProj,
             'avg_final_qualification' => $avgFinalQual
         ];
     }
@@ -153,9 +157,7 @@ class Scorecard {
                 SUM(centenarios_received) as total_centenarios_received,
                 SUM(centenarios_redeemed) as total_centenarios_redeemed,
                 SUM(redemption_amount) as total_redemption_amount,
-                AVG(eval_360) as avg_eval_360,
-                SUM(semester_project_1) as total_semester_project_1,
-                SUM(semester_project_2) as total_semester_project_2
+                AVG(eval_360) as avg_eval_360
                 FROM user_monthly_scorecards WHERE user_id = :user_id AND semester = :semester";
 
         $stmt = $this->db->prepare($sql);
@@ -163,18 +165,30 @@ class Scorecard {
             ':user_id' => $userId,
             ':semester' => $semester
         ]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
-        return $result ?: [
-            'avg_sales' => 0,
-            'avg_performance' => 0,
-            'total_incidents' => 0,
-            'total_centenarios_received' => 0,
-            'total_centenarios_redeemed' => 0,
-            'total_redemption_amount' => 0,
-            'avg_eval_360' => 0,
-            'total_semester_project_1' => 0,
-            'total_semester_project_2' => 0
+        $sqlProj = "SELECT COALESCE(final_semester_project, 0) AS proj_val
+                    FROM user_semester_finals
+                    WHERE user_id = :user_id AND semester = :semester
+                    LIMIT 1";
+        $stmtProj = $this->db->prepare($sqlProj);
+        $stmtProj->execute([
+            ':user_id' => $userId,
+            ':semester' => $semester
+        ]);
+        $projRow = $stmtProj->fetch(PDO::FETCH_ASSOC);
+        $projVal = (float)($projRow['proj_val'] ?? 0);
+
+        return [
+            'avg_sales' => $result['avg_sales'] ?? 0,
+            'avg_performance' => $result['avg_performance'] ?? 0,
+            'total_incidents' => $result['total_incidents'] ?? 0,
+            'total_centenarios_received' => $result['total_centenarios_received'] ?? 0,
+            'total_centenarios_redeemed' => $result['total_centenarios_redeemed'] ?? 0,
+            'total_redemption_amount' => $result['total_redemption_amount'] ?? 0,
+            'avg_eval_360' => $result['avg_eval_360'] ?? 0,
+            'total_semester_project_1' => $projVal,
+            'total_semester_project_2' => $projVal
         ];
     }
 
